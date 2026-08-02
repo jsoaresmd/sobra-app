@@ -68,8 +68,12 @@ export function BancosPage() {
         </button>
         <h1>Bancos (Open Finance)</h1>
         <p className="muted small">
-          O Sobra não pede que você digite gasto por gasto. Conecta no Nubank via Open Finance, puxa crédito e débito, e
-          encaixa nos envelopes com as etiquetas que você já ensinou.
+          O Nubank entra pelo{' '}
+          <a href="https://meu.pluggy.ai" target="_blank" rel="noreferrer">
+            Meu Pluggy
+          </a>
+          . Depois, neste app, no widget você escolhe <strong>MeuPluggy</strong> — não o Nubank com CPF (isso só vale em
+          produção liberada).
         </p>
       </header>
 
@@ -77,25 +81,21 @@ export function BancosPage() {
         <h2>Como ativar (uma vez)</h2>
         <ol className="passos">
           <li>
-            Crie conta grátis no{' '}
+            Em{' '}
             <a href="https://meu.pluggy.ai" target="_blank" rel="noreferrer">
-              Meu Pluggy
-            </a>{' '}
-            e conecte o Nubank (e a conta se quiser).
+              meu.pluggy.ai
+            </a>
+            , conecte o <strong>Nubank</strong> (conta e/ou cartão).
           </li>
           <li>
-            Crie app em{' '}
-            <a href="https://dashboard.pluggy.ai" target="_blank" rel="noreferrer">
-              dashboard.pluggy.ai
-            </a>{' '}
-            e anote Client ID e Client Secret.
+            No Netlify: <code>PLUGGY_CLIENT_ID</code> e <code>PLUGGY_CLIENT_SECRET</code> (já feito).
           </li>
           <li>
-            No Netlify deste site, em Site settings → Environment variables, coloque{' '}
-            <code>PLUGGY_CLIENT_ID</code> e <code>PLUGGY_CLIENT_SECRET</code>.
+            Aqui: <strong>Conectar banco</strong> → no widget escolha <strong>MeuPluggy</strong> (não Nubank) → autorize.
           </li>
-          <li>No dashboard Pluggy, habilite o conector <strong>MeuPluggy</strong> na aplicação.</li>
-          <li>Volte aqui, toque em Conectar banco e autorize o Meu Pluggy.</li>
+          <li>
+            Se tiver mais de um banco no Meu Pluggy, repita a conexão uma vez por banco.
+          </li>
         </ol>
       </section>
 

@@ -117,19 +117,30 @@ export async function abrirPluggyConnect(connectToken: string): Promise<string> 
   if (!Ctor) throw new Error('Pluggy Connect não disponível.')
 
   return new Promise((resolve, reject) => {
+    let resolvido = false
     const widget = new Ctor({
       connectToken,
       includeSandbox: false,
       onSuccess: ({ item }) => {
+        resolvido = true
         widget.destroy?.()
         resolve(item.id)
       },
       onError: (erro) => {
+        resolvido = true
         widget.destroy?.()
-        reject(erro)
+        const msg =
+          erro instanceof Error
+            ? erro.message
+            : typeof erro === 'object' && erro && 'message' in erro
+              ? String((erro as { message: unknown }).message)
+              : 'Falha no Pluggy Connect. No widget, escolha MeuPluggy (não o Nubank direto).'
+        reject(new Error(msg))
       },
       onClose: () => {
-        // fechou sem conectar — não rejeita se já resolveu
+        if (!resolvido) {
+          reject(new Error('Conexão cancelada. No widget, escolha MeuPluggy (não Nubank + CPF).'))
+        }
       },
     })
     widget.init()

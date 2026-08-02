@@ -36,21 +36,36 @@ type TxPluggy = {
 
 async function todasTransacoes(apiKey: string, accountId: string, dateFrom: string) {
   const resultados: TxPluggy[] = []
-  for (let page = 1; page <= 50; page++) {
-    const params = new URLSearchParams({
-      accountId,
-      from: dateFrom,
-      pageSize: '100',
-      page: String(page),
-    })
-    const data = (await pluggyFetch(`/transactions?${params}`, apiKey)) as {
+  const primeiro = new URLSearchParams({
+    accountId,
+    dateFrom,
+    pageSize: '500',
+  })
+  let path: string | null = `/v2/transactions?${primeiro}`
+
+  // Cursor pagination: a resposta traz `next` (ex.: "?accountId=...&after=...") até acabar.
+  for (let i = 0; i < 100 && path; i++) {
+    const data = (await pluggyFetch(path, apiKey)) as {
       results: TxPluggy[]
-      totalPages?: number
-      page?: number
+      next?: string | null
     }
     resultados.push(...(data.results ?? []))
-    if (page >= (data.totalPages ?? 1)) break
+
+    const next = data.next
+    if (!next) {
+      path = null
+      break
+    }
+    if (next.startsWith('http')) {
+      const url = new URL(next)
+      path = `${url.pathname}${url.search}`
+    } else if (next.startsWith('/v2/')) {
+      path = next
+    } else {
+      path = `/v2/transactions${next.startsWith('?') ? next : `?${next}`}`
+    }
   }
+
   return resultados
 }
 
