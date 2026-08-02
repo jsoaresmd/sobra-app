@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4a4ed4" />
+      <stop offset="1" stop-color="#2f3399" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#fundo)" />
+  <circle cx="256" cy="262" r="122" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="40" />
+  <path
+    d="M256 140a122 122 0 0 1 105 185"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="40"
+    stroke-linecap="round"
+  />
+  <path
+    d="M212 232h88M212 272h88M232 200l48 124"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="26"
+    stroke-linecap="round"
+  />
+</svg>

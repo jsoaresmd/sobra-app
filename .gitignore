@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+.DS_Store
+*.local
+.env
+.env.*
+!.env.example
+dev-dist
+nu-extratos/
+*.tsbuildinfo
+.netlify
