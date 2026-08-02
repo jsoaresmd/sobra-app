@@ -39,7 +39,6 @@ async function todasTransacoes(apiKey: string, accountId: string, dateFrom: stri
   const primeiro = new URLSearchParams({
     accountId,
     dateFrom,
-    pageSize: '500',
   })
   let path: string | null = `/v2/transactions?${primeiro}`
 
