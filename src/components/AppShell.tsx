@@ -74,6 +74,19 @@ export function AppShell() {
     window.scrollTo(0, 0)
     const main = document.querySelector('.page')
     if (main instanceof HTMLElement) main.scrollTop = 0
+
+    // Destrava zoom preso no iOS/Android ao trocar de rota.
+    const meta = document.querySelector('meta[name="viewport"]')
+    if (!(meta instanceof HTMLMetaElement)) return
+    const base =
+      'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover'
+    meta.setAttribute(
+      'content',
+      'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover',
+    )
+    requestAnimationFrame(() => {
+      meta.setAttribute('content', base)
+    })
   }, [location.pathname])
 
   return (

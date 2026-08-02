@@ -58,6 +58,12 @@ html[data-page='ajustes'] {
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
 html,
 body,
 #root {
@@ -74,8 +80,8 @@ body {
     radial-gradient(1200px 620px at 8% -12%, var(--glow-a) 0%, transparent 56%),
     radial-gradient(900px 520px at 104% -4%, var(--glow-b) 0%, transparent 52%),
     linear-gradient(180deg, var(--bg0), var(--bg1) 42%, color-mix(in srgb, var(--bg1) 80%, white));
-  background-attachment: fixed;
-  transition: background 0.35s var(--ease);
+  /* fixed no iOS causa zoom/repaint estranho ao trocar de página */
+  background-attachment: scroll;
 }
 
 button,
@@ -83,6 +89,12 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px;
 }
 
 a {
@@ -97,46 +109,13 @@ a {
   color: var(--muted);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .page > * {
-    animation: rise 0.35s var(--ease) both;
-  }
-}
-
-/* No celular o transform da animação + viewport causa “zoom” ao trocar de aba. */
-@media (hover: none), (pointer: coarse) {
-  .page > * {
-    animation: none;
-  }
-
-  body {
-    background-attachment: scroll;
-  }
-
-  input,
-  select,
-  textarea {
-    font-size: 16px !important;
-  }
-
-  button,
-  a,
-  .chip,
-  .tabbar a,
-  .fab {
-    touch-action: manipulation;
-  }
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+button,
+a,
+.chip,
+.tabbar a,
+.fab,
+.mini-btn {
+  touch-action: manipulation;
 }
 
 /* ---------- Shell ---------- */
@@ -176,11 +155,11 @@ a {
   color: var(--muted);
   font-weight: 600;
   font-size: 0.72rem;
-  transition: color 0.2s var(--ease), background 0.2s var(--ease), transform 0.15s var(--ease);
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
 .tabbar a:active {
-  transform: scale(0.92);
+  opacity: 0.7;
 }
 
 .tabbar a.active {
@@ -941,6 +920,7 @@ a {
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   font: inherit;
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
   background: #fff;
