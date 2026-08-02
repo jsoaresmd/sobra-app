@@ -70,6 +70,12 @@ export function AppShell() {
     }
   }, [page])
 
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    const main = document.querySelector('.page')
+    if (main instanceof HTMLElement) main.scrollTop = 0
+  }, [location.pathname])
+
   return (
     <div className="app-shell" data-page={page}>
       <main className="page">

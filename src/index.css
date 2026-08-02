@@ -103,6 +103,31 @@ a {
   }
 }
 
+/* No celular o transform da animação + viewport causa “zoom” ao trocar de aba. */
+@media (hover: none), (pointer: coarse) {
+  .page > * {
+    animation: none;
+  }
+
+  body {
+    background-attachment: scroll;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  button,
+  a,
+  .chip,
+  .tabbar a,
+  .fab {
+    touch-action: manipulation;
+  }
+}
+
 @keyframes rise {
   from {
     opacity: 0;
