@@ -75,6 +75,11 @@ export function HojePage() {
         )}
         {syncMsg && <p className="ok">{syncMsg}</p>}
         {syncErro && <p className="error">{syncErro}</p>}
+        {lancamentos.some((l) => l.origem === 'importado' && l.tipo === 'despesa' && !l.envelopeId) && (
+          <Link to="/ajustes/etiquetar" className="cta">
+            Etiquetar gastos sem envelope →
+          </Link>
+        )}
       </section>
 
       <SaldoReal />

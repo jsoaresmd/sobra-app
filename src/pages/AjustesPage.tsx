@@ -147,6 +147,9 @@ export function AjustesPage() {
         <Link className="linha-link" to="/ajustes/bancos">
           Bancos · Open Finance <span>›</span>
         </Link>
+        <Link className="linha-link" to="/ajustes/etiquetar">
+          Etiquetar gastos sem envelope <span>›</span>
+        </Link>
         <Link className="linha-link" to="/ajustes/importar-nubank">
           Importar fatura Nubank (CSV/PDF) <span>›</span>
         </Link>

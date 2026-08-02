@@ -56,14 +56,15 @@ Com quase tudo no cartão, o saldo do banco mente. Uma compra feita hoje só vir
 
 Por isso o app tem dois números no topo da tela:
 
-**Dinheiro de verdade** — o que sobra em conta depois de tirar tudo que já tem dono até a próxima renda entrar:
+**Dinheiro de verdade** — o que sobra em conta depois de tirar o que já tem dono até a próxima renda:
 
 ```
 Sobra real = saldo em conta
-           − faturas que vencem antes do próximo salário
+           − fatura do cartão a pagar agora (aberta até o fechamento; depois só a fechada)
            − contas fixas em débito ainda não pagas
 ```
 
+Não soma a fatura do ciclo seguinte nem parcelas futuras — só o cartão que cai neste mês.
 **Teto da fatura** — quanto a fatura em formação pode custar sem apertar o mês seguinte:
 
 ```

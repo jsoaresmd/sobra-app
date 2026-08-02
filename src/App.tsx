@@ -13,6 +13,7 @@ import { OrcamentoPage } from './pages/OrcamentoPage'
 import { ContasPage } from './pages/ContasPage'
 import { FixosPage } from './pages/FixosPage'
 import { BancosPage } from './pages/BancosPage'
+import { EtiquetarPage } from './pages/EtiquetarPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 
 const ImportarNubankPage = lazy(() =>
@@ -47,6 +48,7 @@ export function App() {
           <Route path="ajustes/contas" element={<ContasPage />} />
           <Route path="ajustes/fixos" element={<FixosPage />} />
           <Route path="ajustes/bancos" element={<BancosPage />} />
+          <Route path="ajustes/etiquetar" element={<EtiquetarPage />} />
           <Route
             path="ajustes/importar-nubank"
             element={

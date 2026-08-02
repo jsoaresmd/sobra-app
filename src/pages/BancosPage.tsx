@@ -153,6 +153,16 @@ export function BancosPage() {
       </section>
 
       <section className="panel stack">
+        <h2>Etiquetas</h2>
+        <p className="muted small">
+          Gastos importados sem envelope ficam no extrato até você marcar o estabelecimento uma vez.
+        </p>
+        <Link to="/ajustes/etiquetar" className="cta">
+          Etiquetar gastos sem envelope
+        </Link>
+      </section>
+
+      <section className="panel stack">
         <h2>Enquanto isso</h2>
         <p className="muted small">
           Sem as chaves da Pluggy no Netlify, o caminho automático de transição é importar o CSV da fatura — já usa as

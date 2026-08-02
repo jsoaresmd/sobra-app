@@ -715,6 +715,10 @@ a {
   justify-self: start;
 }
 
+.etiquetar-acoes select {
+  grid-column: 1 / -1;
+}
+
 .ritmo-msg {
   margin: 0;
   font-size: 0.95rem;

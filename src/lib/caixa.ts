@@ -28,8 +28,13 @@ export type Caixa = {
 
 /**
  * A conta que o envelope fazia sozinho: tira do saldo tudo que já tem dono
- * (faturas que vencem antes do próximo salário e contas fixas a pagar) e mostra
- * o que realmente é seu para gastar até lá.
+ * (a fatura do cartão que cai neste ciclo e as contas fixas a pagar) e mostra
+ * o que realmente é seu para gastar até a próxima renda.
+ *
+ * Cartão — só uma fatura por vez, a que você paga “agora”:
+ * - Antes do fechamento (ex.: até o dia 4): a fatura em aberto.
+ * - Depois do fechamento: a fatura que acabou de fechar (vence ~dia 11),
+ *   sem somar a fatura nova (próximo mês) nem parcelas futuras.
  */
 export function calcularCaixa(
   config: Config,
@@ -49,7 +54,9 @@ export function calcularCaixa(
   const compromissos: Compromisso[] = []
 
   for (const fatura of faturas) {
-    if (fatura.fechada > 0 && fatura.venceEmFechada <= proximoSalario) {
+    // Fatura fechada ainda não paga tem prioridade: é o que sai da conta neste mês.
+    // Só caímos na aberta quando não há fechada pendente (antes do fechamento).
+    if (fatura.fechada > 0) {
       compromissos.push({
         id: `${fatura.conta.id}-fechada`,
         descricao: `Fatura ${fatura.conta.nome}`,
@@ -57,8 +64,7 @@ export function calcularCaixa(
         data: fatura.venceEmFechada,
         tipo: 'fatura',
       })
-    }
-    if (fatura.aberta > 0 && fatura.venceEmAberta <= proximoSalario) {
+    } else if (fatura.aberta > 0) {
       compromissos.push({
         id: `${fatura.conta.id}-aberta`,
         descricao: `Fatura ${fatura.conta.nome}`,
