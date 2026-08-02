@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useDados } from '../contexts/DadosContext'
 import { db } from '../lib/db'
-import { criarConnectToken, abrirPluggyConnect } from '../lib/pluggyClient'
+import { criarConnectToken, abrirPluggyConnect, listarItensPluggy } from '../lib/pluggyClient'
 import { sincronizarBancosAbertos } from '../lib/sincronizarBancos'
 import { formatarCurto } from '../lib/dates'
 
@@ -12,7 +12,7 @@ export function BancosPage() {
   const { config, envelopes, hoje, contas, categorias } = useDados()
   const regras = useLiveQuery(() => db.regrasImportacao.toArray(), [], [])
 
-  const [busy, setBusy] = useState<'conectar' | 'sync' | null>(null)
+  const [busy, setBusy] = useState<'conectar' | 'sync' | 'recuperar' | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
 
@@ -33,7 +33,35 @@ export function BancosPage() {
       salvarIds([...itemIds, itemId])
       setOk('Banco conectado. Agora toque em Sincronizar.')
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Não consegui abrir a conexão.')
+      const msg = e instanceof Error ? e.message : 'Não consegui abrir a conexão.'
+      if (/already exists|ITEM_USER_ALREADY_EXISTS|item_user_already_exists/i.test(msg)) {
+        setErro('Essa conexão já existe (feita noutro aparelho). Use “Recuperar conexão neste aparelho”.')
+      } else {
+        setErro(msg)
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const recuperar = async () => {
+    setErro(null)
+    setOk(null)
+    setBusy('recuperar')
+    try {
+      const { itemIds: ids, items } = await listarItensPluggy()
+      if (ids.length === 0) {
+        setErro('Nenhuma conexão encontrada na Pluggy. Conecte pelo MeuPluggy primeiro.')
+        return
+      }
+      salvarIds(ids)
+      setOk(
+        `Recuperei ${ids.length} conexão${ids.length === 1 ? '' : 'ões'}${
+          items[0]?.nome ? ` (${items.map((i) => i.nome).join(', ')})` : ''
+        }. Agora toque em Sincronizar.`,
+      )
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não consegui recuperar as conexões.')
     } finally {
       setBusy(null)
     }
@@ -41,7 +69,7 @@ export function BancosPage() {
 
   const sincronizar = async () => {
     if (itemIds.length === 0) {
-      setErro('Conecte um banco antes de sincronizar.')
+      setErro('Conecte um banco (ou recupere a conexão) antes de sincronizar.')
       return
     }
     setErro(null)
@@ -125,6 +153,9 @@ export function BancosPage() {
         <button type="button" className="primary-btn" disabled={busy !== null} onClick={() => void conectar()}>
           {busy === 'conectar' ? 'Abrindo…' : itemIds.length ? 'Conectar outro banco' : 'Conectar banco'}
         </button>
+        <button type="button" className="secondary-btn" disabled={busy !== null} onClick={() => void recuperar()}>
+          {busy === 'recuperar' ? 'Buscando…' : 'Recuperar conexão neste aparelho'}
+        </button>
         <button
           type="button"
           className="secondary-btn"
@@ -133,6 +164,10 @@ export function BancosPage() {
         >
           {busy === 'sync' ? 'Sincronizando…' : 'Sincronizar agora'}
         </button>
+        <p className="muted small">
+          Já conectou no PC? Não precisa conectar de novo — use <strong>Recuperar conexão neste aparelho</strong> e
+          depois Sincronizar.
+        </p>
 
         {ok && <p className="ok">{ok}</p>}
         {erro && <p className="error">{erro}</p>}

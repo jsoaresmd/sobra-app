@@ -79,6 +79,13 @@ export async function criarConnectToken() {
   return data.accessToken
 }
 
+export async function listarItensPluggy() {
+  return chamar<{ itemIds: string[]; items: Array<{ id: string; nome: string; status: string | null }> }>(
+    '/pluggy-items',
+    { method: 'GET' },
+  )
+}
+
 export async function sincronizarPluggy(itemIds: string[], dateFrom?: string) {
   return chamar<SyncPluggyResultado>('/pluggy-sync', {
     method: 'POST',
@@ -86,11 +93,18 @@ export async function sincronizarPluggy(itemIds: string[], dateFrom?: string) {
   })
 }
 
+type PluggyConnectErro = Error & {
+  code?: string
+  codeDescription?: string
+  items?: string[]
+  data?: { items?: string[]; codeDescription?: string }
+}
+
 type PluggyConnectCtor = new (opts: {
   connectToken: string
   includeSandbox?: boolean
   onSuccess: (data: { item: { id: string } }) => void
-  onError?: (erro: Error) => void
+  onError?: (erro: PluggyConnectErro) => void
   onClose?: () => void
 }) => { init: () => void; destroy?: () => void }
 
@@ -98,6 +112,17 @@ declare global {
   interface Window {
     PluggyConnect?: PluggyConnectCtor
   }
+}
+
+function extrairItemsDuplicados(erro: unknown): string[] {
+  if (!erro || typeof erro !== 'object') return []
+  const e = erro as PluggyConnectErro
+  const direto = e.items ?? e.data?.items
+  if (Array.isArray(direto) && direto.length) return direto.filter(Boolean)
+  const texto = `${e.message ?? ''} ${JSON.stringify(erro)}`
+  if (!/ITEM_USER_ALREADY_EXISTS|already exists|item_user_already_exists/i.test(texto)) return []
+  const uuids = texto.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi)
+  return uuids ? [...new Set(uuids)] : []
 }
 
 /** Carrega o widget Pluggy Connect sob demanda. */
@@ -129,6 +154,11 @@ export async function abrirPluggyConnect(connectToken: string): Promise<string> 
       onError: (erro) => {
         resolvido = true
         widget.destroy?.()
+        const duplicados = extrairItemsDuplicados(erro)
+        if (duplicados.length > 0) {
+          resolve(duplicados[0])
+          return
+        }
         const msg =
           erro instanceof Error
             ? erro.message
