@@ -5,7 +5,7 @@ import { sugerirEnvelope } from './regrasImportacao'
 import { salvarRegraImportacao } from './regrasImportacao'
 import { partirDataHora } from './dates'
 import type { ContaPluggySync, SyncPluggyResultado, TxPluggySync } from './pluggyClient'
-import type { Conta, Envelope, Lancamento, RegraImportacao, TipoConta } from './types'
+import type { Conta, Envelope, Lancamento, RegraImportacao, TipoConta, Categoria } from './types'
 import type { TxNubank } from './nubankShared'
 
 function tipoContaPluggy(conta: ContaPluggySync): TipoConta {
@@ -124,6 +124,7 @@ export async function aplicarSyncPluggy(
   envelopes: Envelope[],
   regras: RegraImportacao[],
   hoje: string,
+  categorias: Categoria[] = [],
 ) {
   const mapaConta = new Map<string, string>() // pluggyAccountId → localId
 
@@ -150,7 +151,7 @@ export async function aplicarSyncPluggy(
     const normalizada = txComoNubank(tx)
     if (normalizada.origem === 'pagamento') continue
 
-    const sugestao = sugerirEnvelope(normalizada, envelopes, regras)
+    const sugestao = sugerirEnvelope(normalizada, envelopes, regras, categorias, tx.category)
     const contaId = mapaConta.get(tx.accountId) ?? null
     const { hora } = partirDataHora(tx.date)
 

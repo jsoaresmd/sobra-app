@@ -9,7 +9,7 @@ import { formatarCurto } from '../lib/dates'
 
 export function BancosPage() {
   const navigate = useNavigate()
-  const { config, envelopes, hoje, contas } = useDados()
+  const { config, envelopes, hoje, contas, categorias } = useDados()
   const regras = useLiveQuery(() => db.regrasImportacao.toArray(), [], [])
 
   const [busy, setBusy] = useState<'conectar' | 'sync' | null>(null)
@@ -49,7 +49,7 @@ export function BancosPage() {
     setBusy('sync')
     try {
       if (!config) throw new Error('Config ainda não carregou.')
-      const resultado = await sincronizarBancosAbertos(config, envelopes, regras, hoje)
+      const resultado = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias)
       setOk(
         `Sync ok: ${resultado.novas} lançamento${resultado.novas === 1 ? '' : 's'} novo${resultado.novas === 1 ? '' : 's'}, ${resultado.etiquetadas} no envelope, ${resultado.semEtiqueta} sem etiqueta (${resultado.contas} conta${resultado.contas === 1 ? '' : 's'}).`,
       )

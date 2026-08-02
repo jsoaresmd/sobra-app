@@ -1,6 +1,6 @@
 import { sincronizarPluggy } from './pluggyClient'
 import { aplicarSyncPluggy } from './pluggySync'
-import type { Config, Envelope, RegraImportacao } from './types'
+import type { Categoria, Config, Envelope, RegraImportacao } from './types'
 
 /** Sincroniza todos os itemIds salvos na config e aplica no Dexie. */
 export async function sincronizarBancosAbertos(
@@ -8,6 +8,7 @@ export async function sincronizarBancosAbertos(
   envelopes: Envelope[],
   regras: RegraImportacao[],
   hoje: string,
+  categorias: Categoria[] = [],
 ) {
   const itemIds = config.pluggyItemIds ?? []
   if (itemIds.length === 0) {
@@ -20,5 +21,5 @@ export async function sincronizarBancosAbertos(
     : undefined
 
   const pacote = await sincronizarPluggy(itemIds, dateFrom)
-  return aplicarSyncPluggy(pacote, envelopes, regras, hoje)
+  return aplicarSyncPluggy(pacote, envelopes, regras, hoje, categorias)
 }

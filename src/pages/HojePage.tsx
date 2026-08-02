@@ -38,7 +38,7 @@ export function HojePage() {
     setSyncMsg(null)
     setSyncErro(null)
     try {
-      const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje)
+      const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias)
       setSyncMsg(
         `${r.novas} novo${r.novas === 1 ? '' : 's'} · ${r.etiquetadas} no envelope · ${r.semEtiqueta} sem etiqueta`,
       )

@@ -48,7 +48,7 @@ export function ImportarNubankPage() {
       const montados: ItemImportacao[] = fatura.transacoes
         .filter((t) => t.origem !== 'pagamento')
         .map((tx) => {
-          const sugestao = sugerirEnvelope(tx, envelopes, regras)
+          const sugestao = sugerirEnvelope(tx, envelopes, regras, categorias)
           return {
             tx,
             incluir: !jaTem.has(tx.fingerprint) && tx.origem === 'compra',
