@@ -719,6 +719,244 @@ a {
   grid-column: 1 / -1;
 }
 
+.lista-etiquetar {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.etiqueta-card {
+  background: var(--card-solid);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.etiqueta-topo {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.etiqueta-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  color: var(--primary);
+  background: linear-gradient(145deg, #e8e9ff, #f4f5ff);
+  border: 1px solid #d8daf8;
+}
+
+.etiqueta-titulo {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.etiqueta-titulo strong {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 750;
+  line-height: 1.25;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.etiqueta-meta {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  text-transform: capitalize;
+}
+
+.etiqueta-total {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.etiqueta-total-valor {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.etiqueta-total-lbl {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.etiqueta-ocorrencias {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #fafaff;
+}
+
+.etiqueta-ocorrencias li {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, auto) 1fr auto;
+  gap: 8px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 0.86rem;
+}
+
+.etiqueta-ocorrencias li:last-child {
+  border-bottom: 0;
+}
+
+.etiqueta-quando {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.2;
+  text-transform: capitalize;
+}
+
+.etiqueta-quando strong {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 0.84rem;
+}
+
+.etiqueta-quando em {
+  font-style: normal;
+  color: var(--primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.etiqueta-onde {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.etiqueta-onde .conta-bolinha {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.etiqueta-onde em {
+  font-style: normal;
+  opacity: 0.85;
+}
+
+.etiqueta-valor {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.etiqueta-mais {
+  align-self: flex-start;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.etiqueta-rodape {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--line-soft);
+}
+
+.etiqueta-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.etiqueta-campo > span {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.etiqueta-campo select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: #fff;
+}
+
+.etiqueta-preview {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+.etiqueta-preview strong {
+  color: var(--primary);
+}
+
+.etiqueta-rodape .primary-btn {
+  width: 100%;
+}
+
+@media (max-width: 420px) {
+  .etiqueta-ocorrencias li {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'quando valor'
+      'onde onde';
+  }
+
+  .etiqueta-quando {
+    grid-area: quando;
+  }
+
+  .etiqueta-onde {
+    grid-area: onde;
+  }
+
+  .etiqueta-valor {
+    grid-area: valor;
+  }
+}
+
 .ritmo-msg {
   margin: 0;
   font-size: 0.95rem;

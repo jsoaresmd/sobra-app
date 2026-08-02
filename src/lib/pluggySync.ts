@@ -3,6 +3,7 @@ import { debitarEnvelope } from './envelopes'
 import { chaveEstabelecimento, extrairParcela, nomeSemParcela } from './merchant'
 import { sugerirEnvelope } from './regrasImportacao'
 import { salvarRegraImportacao } from './regrasImportacao'
+import { partirDataHora } from './dates'
 import type { ContaPluggySync, SyncPluggyResultado, TxPluggySync } from './pluggyClient'
 import type { Conta, Envelope, Lancamento, RegraImportacao, TipoConta } from './types'
 import type { TxNubank } from './nubankShared'
@@ -151,6 +152,7 @@ export async function aplicarSyncPluggy(
 
     const sugestao = sugerirEnvelope(normalizada, envelopes, regras)
     const contaId = mapaConta.get(tx.accountId) ?? null
+    const { hora } = partirDataHora(tx.date)
 
     // Preferir categoria da Pluggy se mapearmos pelo nome depois — por enquanto envelopes.
     const lancamento: Lancamento = {
@@ -158,6 +160,7 @@ export async function aplicarSyncPluggy(
       tipo: normalizada.tipo,
       valor: normalizada.valor,
       data: normalizada.data,
+      hora,
       categoriaId: sugestao.categoriaId,
       contaId,
       pessoaId: null,

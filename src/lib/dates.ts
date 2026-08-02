@@ -121,3 +121,30 @@ export function formatarDiaSemana(iso: string) {
 export function formatarCurto(iso: string) {
   return format(fromISO(iso), 'dd/MM', { locale: ptBR })
 }
+
+/** Ex.: "sáb 01/08" */
+export function formatarDiaCurto(iso: string) {
+  return format(fromISO(iso), 'EEE dd/MM', { locale: ptBR })
+}
+
+/** Aceita HH:mm ou ISO com horário (mostra horário de Brasília). */
+export function formatarHora(horaOuIso?: string | null) {
+  if (!horaOuIso) return null
+  if (/^\d{2}:\d{2}$/.test(horaOuIso)) return horaOuIso
+  if (!horaOuIso.includes('T')) return null
+  const d = new Date(horaOuIso)
+  if (Number.isNaN(d.getTime())) return null
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'America/Sao_Paulo',
+  }).format(d)
+}
+
+/** Extrai YYYY-MM-DD e HH:mm de um ISO da Pluggy/banco. */
+export function partirDataHora(iso: string): { data: string; hora?: string } {
+  const data = iso.slice(0, 10)
+  const hora = formatarHora(iso) ?? undefined
+  return hora ? { data, hora } : { data }
+}

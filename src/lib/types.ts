@@ -140,6 +140,8 @@ export type Lancamento = {
   valor: number
   /** Data de competência (quando o gasto aconteceu), formato YYYY-MM-DD. */
   data: string
+  /** Horário do gasto quando o banco informar (HH:mm). */
+  hora?: string
   categoriaId: string | null
   contaId: string | null
   pessoaId: string | null
