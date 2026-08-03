@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useDados } from '../contexts/DadosContext'
 import { CampoMoeda } from '../components/CampoMoeda'
 import { db, novoId } from '../lib/db'
@@ -80,30 +81,32 @@ export function EnvelopesPage() {
 
     return (
       <li key={envelope.id} className={`envelope-card ${estourado ? 'estourado' : ''} tipo-${envelope.tipo}`}>
-        <div className="envelope-topo">
-          <span className="envelope-emoji" aria-hidden="true">
-            {envelope.emoji}
-          </span>
-          <div className="envelope-info">
-            <strong>{envelope.nome}</strong>
-            <span className="muted small">
-              {ROTULO_TIPO_ENVELOPE[envelope.tipo]}
-              {envelope.tipo !== 'investimento' && envelope.valorMensal > 0
-                ? ` · ${formatBRL(envelope.valorMensal)}/mês`
-                : ''}
+        <Link to={`/envelopes/${envelope.id}`} className="envelope-link">
+          <div className="envelope-topo">
+            <span className="envelope-emoji" aria-hidden="true">
+              {envelope.emoji}
             </span>
+            <div className="envelope-info">
+              <strong>{envelope.nome}</strong>
+              <span className="muted small">
+                {ROTULO_TIPO_ENVELOPE[envelope.tipo]}
+                {envelope.tipo !== 'investimento' && envelope.valorMensal > 0
+                  ? ` · ${formatBRL(envelope.valorMensal)}/mês`
+                  : ''}
+              </span>
+            </div>
+            <div className="envelope-saldo">
+              <strong className={estourado ? 'negativo' : ''}>{formatBRL(envelope.saldo)}</strong>
+              <span className="muted small">saldo</span>
+            </div>
           </div>
-          <div className="envelope-saldo">
-            <strong className={estourado ? 'negativo' : ''}>{formatBRL(envelope.saldo)}</strong>
-            <span className="muted small">saldo</span>
-          </div>
-        </div>
 
-        {envelope.tipo !== 'investimento' && envelope.valorMensal > 0 && (
-          <div className="cat-track" aria-hidden="true">
-            <span className="cat-fill" style={{ width: `${percentual * 100}%`, background: envelope.cor }} />
-          </div>
-        )}
+          {envelope.tipo !== 'investimento' && envelope.valorMensal > 0 && (
+            <div className="cat-track" aria-hidden="true">
+              <span className="cat-fill" style={{ width: `${percentual * 100}%`, background: envelope.cor }} />
+            </div>
+          )}
+        </Link>
 
         {editandoValores && (
           <div className="envelope-edicao">

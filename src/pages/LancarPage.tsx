@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useDados } from '../contexts/DadosContext'
 import { Numpad } from '../components/Numpad'
-import { centavosParaReais, formatBRL, reaisParaCentavos } from '../lib/money'
+import { centavosParaReais, formatBRL } from '../lib/money'
 import { hojeISO } from '../lib/dates'
-import { atualizarLancamento, criarLancamento, removerGrupoParcelas, removerLancamento } from '../lib/acoes'
+import { criarLancamento } from '../lib/acoes'
 import { envelopePorCategoria } from '../lib/envelopes'
 import type { TipoLancamento } from '../lib/types'
 
 export function LancarPage() {
-  const { id } = useParams()
   const navigate = useNavigate()
-  const { categorias, contas, config, lancamentos, envelopes, hoje } = useDados()
-
-  const emEdicao = useMemo(() => lancamentos.find((l) => l.id === id), [lancamentos, id])
+  const { categorias, contas, config, envelopes, hoje } = useDados()
   const envelopesAtivos = useMemo(() => envelopes.filter((e) => !e.arquivado && e.tipo !== 'investimento'), [envelopes])
 
   const [digitos, setDigitos] = useState('')
@@ -29,29 +26,16 @@ export function LancarPage() {
   const [salvando, setSalvando] = useState(false)
 
   useEffect(() => {
-    if (!emEdicao) return
-    setDigitos(reaisParaCentavos(emEdicao.valor))
-    setTipo(emEdicao.tipo)
-    setCategoriaId(emEdicao.categoriaId)
-    setEnvelopeId(emEdicao.envelopeId ?? null)
-    setContaId(emEdicao.contaId)
-    setPessoaId(emEdicao.pessoaId)
-    setData(emEdicao.data)
-    setDescricao(emEdicao.descricao)
-    setParcelas(emEdicao.totalParcelas ?? 1)
-  }, [emEdicao])
-
-  useEffect(() => {
-    if (id || contaId) return
+    if (contaId) return
     const padrao = contas.find((c) => c.tipo === 'credito' && !c.arquivada) ?? contas[0]
     if (padrao) setContaId(padrao.id)
-  }, [contas, contaId, id])
+  }, [contas, contaId])
 
   useEffect(() => {
-    if (id || pessoaId) return
+    if (pessoaId) return
     const primeira = config?.pessoas[0]
     if (primeira) setPessoaId(primeira.id)
-  }, [config, pessoaId, id])
+  }, [config, pessoaId])
 
   const escolherCategoria = (idCat: string | null) => {
     setCategoriaId(idCat)
@@ -82,47 +66,27 @@ export function LancarPage() {
     if (!podeSalvar) return
     setSalvando(true)
     try {
-      if (emEdicao) {
-        await atualizarLancamento(
-          emEdicao.id,
-          { valor, tipo, categoriaId, contaId, pessoaId, envelopeId, data, descricao: descricao.trim() },
-          hoje,
-        )
-      } else {
-        await criarLancamento({
-          tipo,
-          valor,
-          data,
-          categoriaId,
-          contaId,
-          pessoaId,
-          envelopeId: tipo === 'despesa' ? envelopeId : null,
-          descricao,
-          parcelas,
-          valorEhTotal: true,
-          hoje,
-        })
-      }
+      await criarLancamento({
+        tipo,
+        valor,
+        data,
+        categoriaId,
+        contaId,
+        pessoaId,
+        envelopeId: tipo === 'despesa' ? envelopeId : null,
+        descricao,
+        parcelas,
+        valorEhTotal: true,
+        hoje,
+      })
       voltar()
     } finally {
       setSalvando(false)
     }
   }
 
-  const excluir = async () => {
-    if (!emEdicao) return
-    if (emEdicao.grupoParcelaId) {
-      const tudo = confirm('Apagar todas as parcelas dessa compra? Cancele para apagar só esta.')
-      if (tudo) await removerGrupoParcelas(emEdicao.grupoParcelaId)
-      else await removerLancamento(emEdicao.id)
-    } else {
-      await removerLancamento(emEdicao.id)
-    }
-    voltar()
-  }
-
   const contaSelecionada = contas.find((c) => c.id === contaId)
-  const mostrarParcelas = !emEdicao && tipo === 'despesa' && contaSelecionada?.tipo === 'credito'
+  const mostrarParcelas = tipo === 'despesa' && contaSelecionada?.tipo === 'credito'
 
   return (
     <div className="lancar-screen">
@@ -130,11 +94,6 @@ export function LancarPage() {
         <button type="button" className="back" onClick={voltar}>
           ‹ voltar
         </button>
-        {emEdicao && (
-          <button type="button" className="link-btn danger-link" onClick={() => void excluir()}>
-            excluir
-          </button>
-        )}
       </header>
 
       <div className="segmented">
@@ -263,7 +222,7 @@ export function LancarPage() {
         <input
           type="text"
           value={descricao}
-          placeholder="Opcional: padaria, farmácia…"
+          placeholder="Opcional"
           onChange={(e) => setDescricao(e.target.value)}
           onFocus={() => setCampoAtivo('texto')}
         />
@@ -272,7 +231,7 @@ export function LancarPage() {
       <div className="lancar-dock">
         {campoAtivo === 'valor' && <Numpad onTecla={teclar} />}
         <button type="button" className="primary-btn save-dock" disabled={!podeSalvar} onClick={() => void salvar()}>
-          {emEdicao ? 'Salvar alterações' : 'Lançar'}
+          Lançar
         </button>
       </div>
     </div>

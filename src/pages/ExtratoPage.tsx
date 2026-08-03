@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useDados } from '../contexts/DadosContext'
 import { SeletorCiclo } from '../components/SeletorCiclo'
 import { formatBRL } from '../lib/money'
@@ -95,7 +94,7 @@ export function ExtratoPage() {
               const pessoa = config?.pessoas.find((p) => p.id === l.pessoaId)
               return (
                 <li key={l.id}>
-                  <Link to={`/lancar/${l.id}`} className="lancamento-link">
+                  <div className="lancamento-link">
                     <span className="previsto-emoji">{categoria?.emoji ?? '💸'}</span>
                     <span className="previsto-info">
                       <strong>{l.descricao || categoria?.nome || 'Lançamento'}</strong>
@@ -108,7 +107,7 @@ export function ExtratoPage() {
                     <span className={`previsto-valor ${l.tipo === 'receita' ? 'receita' : ''}`}>
                       {l.tipo === 'receita' ? '+' : '−'} {formatBRL(l.valor)}
                     </span>
-                  </Link>
+                  </div>
                 </li>
               )
             })}

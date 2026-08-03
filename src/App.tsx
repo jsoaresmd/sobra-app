@@ -6,6 +6,7 @@ import { useDados } from './contexts/DadosContext'
 import { HojePage } from './pages/HojePage'
 import { MesPage } from './pages/MesPage'
 import { EnvelopesPage } from './pages/EnvelopesPage'
+import { EnvelopeDetalhePage } from './pages/EnvelopeDetalhePage'
 import { ExtratoPage } from './pages/ExtratoPage'
 import { LancarPage } from './pages/LancarPage'
 import { AjustesPage } from './pages/AjustesPage'
@@ -41,6 +42,7 @@ export function App() {
         <Route element={<AppShell />}>
           <Route index element={<HojePage />} />
           <Route path="envelopes" element={<EnvelopesPage />} />
+          <Route path="envelopes/:id" element={<EnvelopeDetalhePage />} />
           <Route path="mes" element={<MesPage />} />
           <Route path="extrato" element={<ExtratoPage />} />
           <Route path="ajustes" element={<AjustesPage />} />
@@ -59,7 +61,7 @@ export function App() {
           />
         </Route>
         <Route path="/lancar" element={<LancarPage />} />
-        <Route path="/lancar/:id" element={<LancarPage />} />
+        <Route path="/lancar/:id" element={<Navigate to="/extrato" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <InstallPrompt />

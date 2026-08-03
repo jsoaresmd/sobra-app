@@ -85,7 +85,7 @@ export function AppShell() {
         type="button"
         className="fab"
         onClick={() => navigate('/lancar')}
-        aria-label="Corrigir ou lançar manualmente"
+        aria-label="Lançar correção manual"
         title="Correção manual"
       >
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

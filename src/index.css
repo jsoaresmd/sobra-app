@@ -606,6 +606,19 @@ a,
   gap: 10px;
 }
 
+.envelope-link {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.envelope-link:active {
+  opacity: 0.85;
+}
+
 .envelope-card.estourado {
   border-color: color-mix(in srgb, var(--danger) 40%, var(--line-soft));
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 240, 238, 0.9));
