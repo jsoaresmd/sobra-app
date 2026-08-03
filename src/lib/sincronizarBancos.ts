@@ -23,8 +23,7 @@ export async function sincronizarBancosAbertos(
   }
 
   const temContaPluggy = (await db.contas.toArray()).some((c) => c.pluggyAccountId)
-  const temImportados = (await db.lancamentos.where('origem').equals('importado').count()) > 0
-  const precisaCompleto = opcoes.forcarCompleto || !temContaPluggy || !temImportados || !config.pluggyUltimaSync
+  const precisaCompleto = opcoes.forcarCompleto || !temContaPluggy || !config.pluggyUltimaSync
 
   const desde = precisaCompleto ? undefined : config.pluggyUltimaSync?.slice(0, 10)
   const dateFrom = desde
