@@ -5,10 +5,19 @@ function metaViewport() {
   return document.querySelector('meta[name="viewport"]')
 }
 
-/** Força o meta viewport de volta a 1× (útil quando o teclado/iOS deixa o zoom preso). */
-export function resetarViewport() {
+function escalaAtual() {
+  return window.visualViewport?.scale ?? 1
+}
+
+/** Reaplica o meta viewport. Só faz o “tranco” 1.0001 se a escala estiver > 1. */
+export function resetarViewport(forcar = false) {
   const meta = metaViewport()
   if (!(meta instanceof HTMLMetaElement)) return
+
+  if (!forcar && escalaAtual() <= 1.01) {
+    meta.setAttribute('content', VIEWPORT)
+    return
+  }
 
   meta.setAttribute(
     'content',
@@ -17,16 +26,9 @@ export function resetarViewport() {
   requestAnimationFrame(() => {
     meta.setAttribute('content', VIEWPORT)
   })
-
-  const html = document.documentElement
-  const body = document.body
-  html.style.setProperty('zoom', '1')
-  body.style.setProperty('zoom', '1')
-  if (html.style.transform) html.style.transform = ''
-  if (body.style.transform) body.style.transform = ''
 }
 
-/** Instala travas globais de zoom (pinch, duplo toque, foco em inputs). */
+/** Instala travas globais de zoom (pinch e foco em inputs). */
 export function instalarTravasZoom() {
   const meta = metaViewport()
   if (meta instanceof HTMLMetaElement) meta.setAttribute('content', VIEWPORT)
@@ -56,23 +58,18 @@ export function instalarTravasZoom() {
   })
 
   document.addEventListener('focusout', () => {
-    window.setTimeout(resetarViewport, 50)
-    window.setTimeout(resetarViewport, 350)
+    window.setTimeout(() => resetarViewport(true), 300)
   })
 
+  let resizeTimer = 0
   window.visualViewport?.addEventListener('resize', () => {
-    const escala = window.visualViewport?.scale ?? 1
-    if (escala > 1.01) resetarViewport()
-  })
-
-  window.visualViewport?.addEventListener('scroll', () => {
-    const escala = window.visualViewport?.scale ?? 1
-    if (escala > 1.01) resetarViewport()
+    window.clearTimeout(resizeTimer)
+    resizeTimer = window.setTimeout(() => {
+      if (escalaAtual() > 1.05) resetarViewport(true)
+    }, 150)
   })
 
   window.addEventListener('orientationchange', () => {
-    window.setTimeout(resetarViewport, 250)
+    window.setTimeout(() => resetarViewport(true), 300)
   })
-
-  window.addEventListener('pageshow', () => resetarViewport())
 }

@@ -62,13 +62,15 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   touch-action: pan-x pan-y;
-  zoom: 1;
+  overflow-x: clip;
 }
 
 html,
 body,
 #root {
   min-height: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 body {
@@ -128,15 +130,19 @@ a,
 /* ---------- Shell ---------- */
 .app-shell {
   min-height: 100svh;
-  max-width: 480px;
+  max-width: min(480px, 100%);
+  width: 100%;
   margin: 0 auto;
   display: grid;
   grid-template-rows: 1fr auto;
   position: relative;
+  overflow-x: clip;
 }
 
 .page {
   padding: 20px 16px 116px;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .tabbar {
@@ -262,6 +268,8 @@ a,
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .gap-lg {
@@ -273,6 +281,7 @@ a,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .cta {
@@ -364,10 +373,11 @@ a,
 
 .hero-num {
   font-family: var(--display);
-  font-size: 2.9rem;
+  font-size: clamp(1.75rem, 9vw, 2.5rem);
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1.05;
+  overflow-wrap: anywhere;
 }
 
 .hero-sub {
@@ -563,9 +573,10 @@ a,
 
 .orcamento-num {
   font-family: var(--display);
-  font-size: 1.35rem;
+  font-size: clamp(1.1rem, 5vw, 1.35rem);
   font-weight: 800;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Envelopes ---------- */
@@ -1466,6 +1477,8 @@ textarea:focus {
   color: var(--ok);
   margin: 0;
   font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .error {
@@ -1473,6 +1486,8 @@ textarea:focus {
   margin: 0;
   font-size: 0.9rem;
   font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .passos {

@@ -75,7 +75,7 @@ export function AppShell() {
     window.scrollTo(0, 0)
     const main = document.querySelector('.page')
     if (main instanceof HTMLElement) main.scrollTop = 0
-    resetarViewport()
+    resetarViewport(false)
   }, [location.pathname])
 
   return (
