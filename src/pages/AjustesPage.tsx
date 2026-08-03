@@ -136,7 +136,7 @@ export function AjustesPage() {
           Envelopes <span>›</span>
         </Link>
         <Link className="linha-link" to="/ajustes/bancos">
-          Bancos · Open Finance <span>›</span>
+          Bancos <span>›</span>
         </Link>
         <Link className="linha-link" to="/ajustes/etiquetar">
           Etiquetar gastos sem envelope <span>›</span>
