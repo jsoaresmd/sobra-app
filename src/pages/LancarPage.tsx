@@ -137,12 +137,6 @@ export function LancarPage() {
         )}
       </header>
 
-      {!emEdicao && (
-        <p className="muted small" style={{ margin: '0 4px' }}>
-          Correção manual — o fluxo normal é sincronizar os bancos.
-        </p>
-      )}
-
       <div className="segmented">
         <button type="button" className={tipo === 'despesa' ? 'active' : ''} onClick={() => setTipo('despesa')}>
           Gasto

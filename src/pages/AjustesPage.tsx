@@ -51,7 +51,7 @@ export function AjustesPage() {
     <div className="stack gap-lg">
       <header className="page-head">
         <p className="eyebrow">Ajustes</p>
-        <h1>Como o app calcula</h1>
+        <h1>Configuração</h1>
       </header>
 
       <section className="panel stack">
@@ -59,16 +59,14 @@ export function AjustesPage() {
         <label>
           Renda mensal
           <CampoMoeda valor={config.rendaMensal} onChange={(v) => salvar({ rendaMensal: v })} />
-          <span className="ajuda">Sua renda fixa. Entradas extras você lança normalmente.</span>
         </label>
         <label>
-          Quero guardar por mês
+          Guardar por mês
           <CampoMoeda valor={config.metaPoupanca} onChange={(v) => salvar({ metaPoupanca: v })} />
-          <span className="ajuda">Esse valor sai do teto antes de tudo, então o app já o protege.</span>
         </label>
         {resumo && (
           <p className="muted small">
-            Teto atual: <strong>{formatBRL(resumo.teto)}</strong> por período.
+            Teto: <strong>{formatBRL(resumo.teto)}</strong>
           </p>
         )}
       </section>
@@ -76,26 +74,21 @@ export function AjustesPage() {
       <section className="panel stack">
         <h2>Teto da fatura</h2>
         <p className="muted small">
-          É o quanto a fatura pode custar sem apertar o mês seguinte: a renda menos o que você paga fora do cartão
-          (contas fixas em débito, dízimo) e menos o que quer guardar.
-        </p>
-        <p className="muted small">
-          Calculado hoje: <strong>{formatBRL(tetoFatura)}</strong>
+          Calculado: <strong>{formatBRL(tetoFatura)}</strong>
         </p>
         <label>
-          Definir na mão (opcional)
+          Manual (opcional)
           <CampoMoeda
             valor={config.tetoFaturaManual ?? 0}
             onChange={(v) => salvar({ tetoFaturaManual: v > 0 ? v : undefined })}
           />
-          <span className="ajuda">Deixe zerado para o app calcular sozinho a partir das contas fixas.</span>
         </label>
       </section>
 
       <section className="panel stack">
         <h2>Período</h2>
         <label>
-          O mês começa no dia
+          Mês começa no dia
           <input
             type="number"
             min={1}
@@ -103,10 +96,9 @@ export function AjustesPage() {
             value={config.diaInicioCiclo}
             onChange={(e) => salvar({ diaInicioCiclo: Math.min(28, Math.max(1, Number(e.target.value) || 1)) })}
           />
-          <span className="ajuda">Use 1 para o mês normal, ou o dia em que o salário cai.</span>
         </label>
         <label>
-          Avisar quando passar de
+          Avisar a partir de (%)
           <input
             type="number"
             min={50}
@@ -114,7 +106,6 @@ export function AjustesPage() {
             value={Math.round(config.alertaEm * 100)}
             onChange={(e) => salvar({ alertaEm: Math.min(1, Math.max(0.5, (Number(e.target.value) || 85) / 100)) })}
           />
-          <span className="ajuda">Percentual do orçamento em que o app começa a alertar.</span>
         </label>
       </section>
 
@@ -166,9 +157,6 @@ export function AjustesPage() {
 
       <section className="panel stack">
         <h2>Backup</h2>
-        <p className="muted small">
-          Tudo fica guardado só neste aparelho. Exporte de vez em quando e salve o arquivo no Drive ou no e-mail.
-        </p>
         <button type="button" className="secondary-btn" onClick={() => void baixarBackup()}>
           Exportar dados
         </button>

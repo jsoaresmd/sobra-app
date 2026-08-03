@@ -34,7 +34,7 @@ export async function sincronizarBancosAbertos(
   const pacote = await sincronizarPluggy(itemIds, dateFrom)
   if (!pacote.contas.length) {
     throw new Error(
-      'Esse Item ID não trouxe nenhuma conta da Pluggy. Confira se copiou o ID da conexão certa (MeuPluggy com Nubank), não de uma demo vazia.',
+      'Item ID sem contas na Pluggy. Confira se é o ID certo.',
     )
   }
 

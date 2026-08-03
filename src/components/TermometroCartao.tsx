@@ -37,9 +37,7 @@ export function TermometroCartao({ termometro }: { termometro: TermometroFatura 
       </div>
 
       <p className="termometro-msg">
-        {estourou
-          ? `Esta fatura já passou do que a renda cobre. Cada compra até ${formatarCurto(fatura.fechaEm)} aumenta o buraco do mês que vem.`
-          : `Dá para gastar ${formatBRL(Math.max(0, porDia))} por dia até fechar sem apertar o próximo mês.`}
+        {estourou ? 'Acima do teto desta fatura.' : `${formatBRL(Math.max(0, porDia))}/dia até fechar`}
       </p>
 
       <div className="termometro-rodape muted small">

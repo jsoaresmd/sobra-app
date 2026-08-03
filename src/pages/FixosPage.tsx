@@ -98,9 +98,6 @@ export function FixosPage() {
           ‹ ajustes
         </button>
         <h1>Contas fixas</h1>
-        <p className="muted small">
-          É o que o app usa para dizer quanto ainda vai cair. Aluguel, escola, assinaturas, financiamento.
-        </p>
       </header>
 
       <section className="panel stack">

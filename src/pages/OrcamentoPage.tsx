@@ -40,9 +40,6 @@ export function OrcamentoPage() {
           ‹ ajustes
         </button>
         <h1>Tetos por categoria</h1>
-        <p className="muted small">
-          Defina quanto quer gastar em cada coisa. Deixe zerado para acompanhar sem limite.
-        </p>
       </header>
 
       <section className="panel stack">

@@ -27,27 +27,22 @@ export function OnboardingPage() {
     <div className="onboarding">
       <div className="onboarding-card stack gap-lg">
         <header className="stack">
-          <p className="eyebrow">Bem-vindo ao Sobra</p>
-          <h1>Quanto ainda dá para gastar?</h1>
-          <p className="muted small">
-            Diferente dos outros apps, aqui a conta é feita para o futuro do mês. Só preciso de três informações para
-            começar — dá para mudar tudo depois.
-          </p>
+          <p className="eyebrow">Sobra</p>
+          <h1>Começar</h1>
         </header>
 
         <label>
-          Quanto entra por mês
+          Renda mensal
           <CampoMoeda valor={renda} onChange={setRenda} />
         </label>
 
         <label>
-          Quanto quer guardar
+          Guardar por mês
           <CampoMoeda valor={poupanca} onChange={setPoupanca} />
-          <span className="ajuda">Fica reservado antes de qualquer gasto. Pode deixar zero.</span>
         </label>
 
         <label>
-          O mês começa no dia
+          Mês começa no dia
           <input
             type="number"
             min={1}
@@ -55,7 +50,6 @@ export function OnboardingPage() {
             value={diaInicio}
             onChange={(e) => setDiaInicio(Math.min(28, Math.max(1, Number(e.target.value) || 1)))}
           />
-          <span className="ajuda">Use 1 para o mês normal, ou o dia em que o salário cai.</span>
         </label>
 
         {renda > 0 && (

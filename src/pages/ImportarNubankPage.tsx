@@ -145,10 +145,6 @@ export function ImportarNubankPage() {
           ‹ ajustes
         </button>
         <h1>Importar fatura Nubank</h1>
-        <p className="muted small">
-          Prefira o <strong>CSV</strong> (mais limpo). O PDF também funciona. Você etiqueta o estabelecimento uma vez;
-          nas próximas faturas o Sobra reconhece e joga no envelope certo.
-        </p>
       </header>
 
       <section className="panel stack">
@@ -211,8 +207,7 @@ export function ImportarNubankPage() {
 
           {semEtiqueta > 0 && (
             <p className="ritmo-msg">
-              Há {semEtiqueta} gasto{semEtiqueta === 1 ? '' : 's'} sem envelope. Escolha um e toque em{' '}
-              <strong>aplicar iguais</strong> para etiquetar todas as ocorrências desse estabelecimento de uma vez.
+              {semEtiqueta} sem envelope.
             </p>
           )}
 
@@ -297,7 +292,7 @@ export function ImportarNubankPage() {
       <section className="panel stack">
         <h2>Etiquetas aprendidas</h2>
         {regras.length === 0 ? (
-          <p className="muted small">Ainda nenhuma. Depois da primeira importação elas aparecem aqui.</p>
+          <p className="muted small">Nenhuma ainda.</p>
         ) : (
           <ul className="lista-simples">
             {regras

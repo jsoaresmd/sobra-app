@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useDados } from '../contexts/DadosContext'
 import { CampoMoeda } from '../components/CampoMoeda'
 import { db, novoId } from '../lib/db'
@@ -173,11 +172,8 @@ export function EnvelopesPage() {
   return (
     <div className="stack gap-lg">
       <header className="page-head">
-        <p className="eyebrow">Como no papel</p>
+        <p className="eyebrow">Envelopes</p>
         <h1>Envelopes</h1>
-        <p className="muted small">
-          Cada setor tem seu saldo. Gasto sai do envelope. Sobra dos variáveis vai para investimentos no próximo ciclo.
-        </p>
       </header>
 
       <section className="panel resumo-panel">
@@ -203,12 +199,7 @@ export function EnvelopesPage() {
         </button>
       </div>
 
-      {semDeposito && (
-        <p className="ritmo-msg">
-          Há envelopes com valor definido e saldo zerado. Toque em <strong>Separar o dinheiro do mês</strong> para
-          depositar.
-        </p>
-      )}
+      {semDeposito && <p className="ritmo-msg">Há envelopes sem depósito neste ciclo.</p>}
       {aviso && <p className="ok">{aviso}</p>}
       {erro && !transferindo && <p className="error">{erro}</p>}
 
@@ -280,13 +271,6 @@ export function EnvelopesPage() {
           + envelope variável
         </button>
       </div>
-
-      <p className="muted small center">
-        Quer ver o resumo clássico por categoria?{' '}
-        <Link to="/mes" className="cta">
-          abrir o mês
-        </Link>
-      </p>
     </div>
   )
 }

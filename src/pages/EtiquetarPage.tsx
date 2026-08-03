@@ -113,10 +113,6 @@ export function EtiquetarPage() {
           ‹ voltar
         </button>
         <h1>Etiquetar gastos</h1>
-        <p className="muted small">
-          Um envelope por estabelecimento. Data e horário ajudam a lembrar o gasto; a etiqueta vale nas próximas
-          sincronizações.
-        </p>
       </header>
 
       <section className="stat-grid tres">
@@ -139,7 +135,7 @@ export function EtiquetarPage() {
 
       {grupos.length === 0 ? (
         <section className="panel">
-          <p className="muted small">Nada pendente. Todos os gastos importados já têm envelope.</p>
+          <p className="muted small">Nada pendente.</p>
           <Link to="/ajustes/bancos" className="cta">
             voltar aos bancos
           </Link>

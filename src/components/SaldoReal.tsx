@@ -48,7 +48,6 @@ export function SaldoReal() {
         {editando && contaPrincipal && (
           <div className="verdade-editor">
             <CampoMoeda valor={contaPrincipal.saldo ?? 0} onChange={salvarSaldo} />
-            <span className="verdade-dica">Saldo de {contaPrincipal.nome}, direto do app do banco.</span>
           </div>
         )}
 
@@ -67,14 +66,11 @@ export function SaldoReal() {
         </div>
       </div>
 
-      {semSaldo ? (
-        <p className="hero-status">informe o saldo do banco para o cálculo ficar real</p>
-      ) : (
-        <p className="hero-status">
-          {negativo
-            ? 'os compromissos passam do que há em conta'
-            : `dá ${formatBRL(caixa.porDia)} por dia até lá`}
-        </p>
+      {!semSaldo && !negativo && (
+        <p className="hero-status">dá {formatBRL(caixa.porDia)} por dia até lá</p>
+      )}
+      {!semSaldo && negativo && (
+        <p className="hero-status">compromissos passam do que há em conta</p>
       )}
     </section>
   )

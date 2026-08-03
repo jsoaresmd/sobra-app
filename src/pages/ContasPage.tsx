@@ -42,9 +42,6 @@ export function ContasPage() {
           ‹ ajustes
         </button>
         <h1>Contas e cartões</h1>
-        <p className="muted small">
-          No cartão, o fechamento define em qual fatura a compra cai — é o que permite prever quanto ainda vem.
-        </p>
       </header>
 
       <ul className="stack">
@@ -105,16 +102,11 @@ export function ContasPage() {
                       <CampoMoeda valor={conta.limite ?? 0} onChange={(v) => atualizar(conta.id, { limite: v })} />
                     </label>
                     <label>
-                      Fatura de hoje, conferida no app do banco
+                      Fatura atual
                       <CampoMoeda
                         valor={conta.faturaInformada ?? 0}
                         onChange={(v) => atualizar(conta.id, { faturaInformada: v, faturaInformadaEm: hoje })}
                       />
-                      <span className="ajuda">
-                        Ponto de partida para não precisar cadastrar o que já foi gasto. Daqui em diante só o que você
-                        lançar entra por cima.
-                        {conta.faturaInformadaEm && ` Informado em ${formatarCurto(conta.faturaInformadaEm)}.`}
-                      </span>
                     </label>
                     {fatura && (
                       <p className="muted small">
@@ -128,16 +120,14 @@ export function ContasPage() {
 
                 {conta.tipo !== 'credito' && (
                   <label>
-                    Saldo de hoje
+                    Saldo
                     <CampoMoeda
                       valor={conta.saldo ?? 0}
                       onChange={(v) => atualizar(conta.id, { saldo: v, saldoEm: hoje })}
                     />
-                    <span className="ajuda">
-                      {conta.saldoEm
-                        ? `Conferido em ${formatarCurto(conta.saldoEm)}.`
-                        : 'É esse valor que alimenta o “dinheiro de verdade” da tela Hoje.'}
-                    </span>
+                    {conta.saldoEm && (
+                      <span className="ajuda">Conferido em {formatarCurto(conta.saldoEm)}.</span>
+                    )}
                   </label>
                 )}
 

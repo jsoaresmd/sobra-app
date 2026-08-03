@@ -39,9 +39,8 @@ export function HojePage() {
     setSyncErro(null)
     try {
       const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias)
-      setSyncMsg(
-        `${r.novas} novo${r.novas === 1 ? '' : 's'} · ${r.etiquetadas} no envelope · ${r.semEtiqueta} sem etiqueta`,
-      )
+      const saldos = r.resumoContas.map((c) => `${c.nome} ${formatBRL(c.valor)}`).join(' · ')
+      setSyncMsg(`${saldos || `${r.contas} contas`} · ${r.novas} novo${r.novas === 1 ? '' : 's'}`)
     } catch (e) {
       setSyncErro(e instanceof Error ? e.message : 'Falha ao sincronizar.')
     } finally {
@@ -59,19 +58,12 @@ export function HojePage() {
       <section className="panel stack sync-panel">
         {conectado ? (
           <button type="button" className="primary-btn" disabled={syncBusy} onClick={() => void sincronizar()}>
-            {syncBusy ? 'Sincronizando bancos…' : 'Sincronizar bancos'}
+            {syncBusy ? 'Sincronizando…' : 'Sincronizar bancos'}
           </button>
         ) : (
           <Link to="/ajustes/bancos" className="primary-btn sync-link">
-            Conectar bancos (Open Finance)
+            Conectar bancos
           </Link>
-        )}
-        <p className="muted small">
-          Débito e crédito entram sozinhos nos envelopes. O <strong>+</strong> é só para corrigir ou completar o que o
-          banco não trouxe.
-        </p>
-        {config?.pluggyUltimaSync && (
-          <p className="muted small">Última sync: {formatarCurto(config.pluggyUltimaSync.slice(0, 10))}</p>
         )}
         {syncMsg && <p className="ok">{syncMsg}</p>}
         {syncErro && <p className="error">{syncErro}</p>}
@@ -176,9 +168,7 @@ export function HojePage() {
           </Link>
         </div>
         {ultimos.length === 0 ? (
-          <p className="muted small">
-            Ainda vazio. Conecte o banco ou importe a fatura — o volume principal não é digitar gasto a gasto.
-          </p>
+          <p className="muted small">Nenhum lançamento.</p>
         ) : (
           <ul className="lista-lancamentos">
             {ultimos.map((l) => {
