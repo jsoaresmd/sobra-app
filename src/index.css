@@ -61,16 +61,17 @@ html[data-page='ajustes'] {
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  touch-action: pan-x pan-y;
-  overflow-x: clip;
+  touch-action: manipulation;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 html,
 body,
 #root {
-  min-height: 100%;
+  height: 100%;
   max-width: 100%;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 body {
@@ -80,13 +81,12 @@ body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  touch-action: pan-x pan-y;
-  overscroll-behavior-y: contain;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
   background:
     radial-gradient(1200px 620px at 8% -12%, var(--glow-a) 0%, transparent 56%),
     radial-gradient(900px 520px at 104% -4%, var(--glow-b) 0%, transparent 52%),
     linear-gradient(180deg, var(--bg0), var(--bg1) 42%, color-mix(in srgb, var(--bg1) 80%, white));
-  /* fixed no iOS causa zoom/repaint estranho ao trocar de página */
   background-attachment: scroll;
 }
 
@@ -112,7 +112,7 @@ a {
 }
 
 .boot {
-  min-height: 100svh;
+  min-height: 100%;
   display: grid;
   place-items: center;
   color: var(--muted);
@@ -129,33 +129,36 @@ a,
 
 /* ---------- Shell ---------- */
 .app-shell {
-  min-height: 100svh;
-  max-width: min(480px, 100%);
+  height: 100%;
+  max-width: 480px;
   width: 100%;
   margin: 0 auto;
-  display: grid;
-  grid-template-rows: 1fr auto;
+  display: flex;
+  flex-direction: column;
   position: relative;
-  overflow-x: clip;
+  overflow: hidden;
 }
 
 .page {
-  padding: 20px 16px 116px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding: 20px 16px 88px;
   max-width: 100%;
-  overflow-x: clip;
 }
 
 .tabbar {
-  position: sticky;
-  bottom: 0;
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
-  background: color-mix(in srgb, var(--bg1) 88%, white);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--bg1) 92%, white);
   border-top: 1px solid var(--line-soft);
+  z-index: 10;
 }
 
 .tabbar a {
@@ -189,13 +192,13 @@ a,
 }
 
 .fab {
-  position: fixed;
-  right: max(16px, calc(50vw - 240px + 16px));
-  bottom: calc(84px + env(safe-area-inset-bottom));
-  width: 60px;
-  height: 60px;
+  position: absolute;
+  right: 16px;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
   border: 0;
-  border-radius: 22px;
+  border-radius: 20px;
   background: linear-gradient(135deg, var(--primary), var(--primary-2));
   color: var(--primary-ink);
   box-shadow: 0 12px 26px rgba(59, 63, 182, 0.4);
@@ -203,7 +206,6 @@ a,
   place-items: center;
   cursor: pointer;
   z-index: 20;
-  transition: transform 0.15s var(--ease);
 }
 
 .fab:active {
@@ -211,8 +213,8 @@ a,
 }
 
 .fab svg {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
 }
 
 /* ---------- Tipografia ---------- */
@@ -456,10 +458,14 @@ a,
 
 .verdade-valor {
   font-weight: 700;
-  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  max-width: 48%;
+  justify-content: flex-end;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .verdade-linha.total {
@@ -1767,7 +1773,7 @@ textarea:focus {
   background: rgba(28, 27, 58, 0.42);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  animation: rise 0.35s var(--ease) both;
+  animation: none;
 }
 
 .install-sheet {

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, type ReactElement } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { resetarViewport } from '../lib/viewportLock'
 
 type TabDef = {
   to: string
@@ -72,10 +71,8 @@ export function AppShell() {
   }, [page])
 
   useEffect(() => {
-    window.scrollTo(0, 0)
     const main = document.querySelector('.page')
     if (main instanceof HTMLElement) main.scrollTop = 0
-    resetarViewport(false)
   }, [location.pathname])
 
   return (

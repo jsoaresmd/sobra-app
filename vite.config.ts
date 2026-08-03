@@ -32,6 +32,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/\.netlify\//],
+        // Força o SW a invalidar caches antigos que deixavam o layout “zoomed”.
+        cacheId: 'sobra-2026-08-02-zoom',
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,

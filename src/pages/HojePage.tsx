@@ -39,8 +39,7 @@ export function HojePage() {
     setSyncErro(null)
     try {
       const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias)
-      const saldos = r.resumoContas.map((c) => `${c.nome} ${formatBRL(c.valor)}`).join(' · ')
-      setSyncMsg(`${saldos || `${r.contas} contas`} · ${r.novas} novo${r.novas === 1 ? '' : 's'}`)
+      setSyncMsg(`${r.contas} contas · ${r.novas} novo${r.novas === 1 ? '' : 's'}`)
     } catch (e) {
       setSyncErro(e instanceof Error ? e.message : 'Falha ao sincronizar.')
     } finally {
