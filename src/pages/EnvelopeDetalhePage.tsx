@@ -44,7 +44,9 @@ export function EnvelopeDetalhePage() {
   if (!resumo) return null
 
   const totalGasto = gastos.reduce((s, l) => s + l.valor, 0)
-  const estourado = envelope.saldo < 0
+  const orcamento = envelope.valorMensal
+  const sobra = orcamento - totalGasto
+  const estourado = orcamento > 0 ? sobra < 0 : totalGasto > 0
 
   return (
     <div className="stack gap-lg">
@@ -65,17 +67,17 @@ export function EnvelopeDetalhePage() {
           <strong className={estourado ? 'negativo' : ''}>{formatBRL(totalGasto)}</strong>
         </div>
         <div className="linha-resumo">
-          <span>Saldo do envelope</span>
-          <strong className={estourado ? 'negativo' : ''}>{formatBRL(envelope.saldo)}</strong>
+          <span>Orçamento</span>
+          <strong>{formatBRL(orcamento)}</strong>
         </div>
-        {envelope.valorMensal > 0 && (
+        {orcamento > 0 && (
           <div className="linha-resumo">
-            <span>Valor do mês</span>
-            <strong>{formatBRL(envelope.valorMensal)}</strong>
+            <span>{estourado ? 'Passou' : 'Sobra'}</span>
+            <strong className={estourado ? 'negativo' : ''}>{formatBRL(Math.abs(sobra))}</strong>
           </div>
         )}
         <p className="muted small">
-          {gastos.length} gasto{gastos.length === 1 ? '' : 's'} neste período
+          {gastos.length} gasto{gastos.length === 1 ? '' : 's'}
         </p>
       </section>
 
