@@ -204,5 +204,19 @@ export async function aplicarSyncPluggy(
     pluggyUltimaSync: pacote.sincronizadoEm,
   })
 
-  return { novas, etiquetadas, semEtiqueta, contas: pacote.contas.length }
+  const resumoContas = pacote.contas.map((c) => {
+    const nome = c.marketingName || c.name
+    const tipo = tipoContaPluggy(c)
+    const valor = tipo === 'credito' ? Math.abs(c.balance) : c.balance
+    return { nome, tipo, valor }
+  })
+
+  return {
+    novas,
+    etiquetadas,
+    semEtiqueta,
+    contas: pacote.contas.length,
+    transacoesRecebidas: pacote.transacoes.length,
+    resumoContas,
+  }
 }

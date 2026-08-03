@@ -23,7 +23,11 @@ export function BancosPage() {
   const contasPluggy = contas.filter((c) => c.pluggyAccountId && !c.arquivada)
 
   const salvarIds = (ids: string[]) => {
-    void db.config.update('app', { pluggyItemIds: [...new Set(ids)] })
+    // Novo ID = próxima sync deve buscar o histórico completo, não só os últimos dias.
+    void db.config.update('app', {
+      pluggyItemIds: [...new Set(ids)],
+      pluggyUltimaSync: '',
+    })
   }
 
   const conectarOuRecuperar = async (modo: 'conectar' | 'recuperar') => {
@@ -67,7 +71,7 @@ export function BancosPage() {
     setOk('Item ID salvo neste aparelho. Toque em Sincronizar.')
   }
 
-  const sincronizar = async () => {
+  const sincronizar = async (forcarCompleto = false) => {
     if (itemIds.length === 0) {
       setErro('Conecte / recupere a conexão (ou cole o Item ID) antes de sincronizar.')
       return
@@ -77,9 +81,14 @@ export function BancosPage() {
     setBusy('sync')
     try {
       if (!config) throw new Error('Config ainda não carregou.')
-      const resultado = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias)
+      const resultado = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias, {
+        forcarCompleto,
+      })
+      const saldos = resultado.resumoContas
+        .map((c) => `${c.nome}: ${c.tipo === 'credito' ? 'fatura ' : ''}${c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`)
+        .join(' · ')
       setOk(
-        `Sync ok: ${resultado.novas} lançamento${resultado.novas === 1 ? '' : 's'} novo${resultado.novas === 1 ? '' : 's'}, ${resultado.etiquetadas} no envelope, ${resultado.semEtiqueta} sem etiqueta (${resultado.contas} conta${resultado.contas === 1 ? '' : 's'}).`,
+        `Sync ok: ${resultado.contas} conta${resultado.contas === 1 ? '' : 's'} (${saldos}). ${resultado.transacoesRecebidas} tx da Pluggy → ${resultado.novas} nova${resultado.novas === 1 ? '' : 's'} no app (${resultado.etiquetadas} no envelope, ${resultado.semEtiqueta} sem etiqueta).`,
       )
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Falha na sincronização.')
@@ -147,9 +156,17 @@ export function BancosPage() {
           type="button"
           className="secondary-btn"
           disabled={busy !== null || itemIds.length === 0}
-          onClick={() => void sincronizar()}
+          onClick={() => void sincronizar(false)}
         >
           {busy === 'sync' ? 'Sincronizando…' : 'Sincronizar agora'}
+        </button>
+        <button
+          type="button"
+          className="secondary-btn"
+          disabled={busy !== null || itemIds.length === 0}
+          onClick={() => void sincronizar(true)}
+        >
+          Buscar de novo (90 dias)
         </button>
 
         <p className="muted small">
