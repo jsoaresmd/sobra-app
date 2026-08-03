@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useDados } from '../contexts/DadosContext'
 import { db } from '../lib/db'
-import { criarConnectToken, abrirPluggyConnect, listarItensPluggy } from '../lib/pluggyClient'
+import { criarConnectToken, abrirPluggyConnect } from '../lib/pluggyClient'
 import { sincronizarBancosAbertos } from '../lib/sincronizarBancos'
 import { formatarCurto } from '../lib/dates'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function BancosPage() {
   const navigate = useNavigate()
@@ -15,6 +17,7 @@ export function BancosPage() {
   const [busy, setBusy] = useState<'conectar' | 'sync' | 'recuperar' | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
+  const [itemIdManual, setItemIdManual] = useState('')
 
   const itemIds = config?.pluggyItemIds ?? []
   const contasPluggy = contas.filter((c) => c.pluggyAccountId && !c.arquivada)
@@ -23,19 +26,27 @@ export function BancosPage() {
     void db.config.update('app', { pluggyItemIds: [...new Set(ids)] })
   }
 
-  const conectar = async () => {
+  const conectarOuRecuperar = async (modo: 'conectar' | 'recuperar') => {
     setErro(null)
     setOk(null)
-    setBusy('conectar')
+    setBusy(modo)
     try {
       const token = await criarConnectToken()
-      const itemId = await abrirPluggyConnect(token)
-      salvarIds([...itemIds, itemId])
-      setOk('Banco conectado. Agora toque em Sincronizar.')
+      const { itemIds: ids, nova } = await abrirPluggyConnect(token)
+      salvarIds([...itemIds, ...ids])
+      if (nova) {
+        setOk('Banco conectado. Agora toque em Sincronizar.')
+      } else {
+        setOk(
+          `Conexão já existia — recuperei ${ids.length} item${ids.length === 1 ? '' : 's'} neste aparelho. Toque em Sincronizar.`,
+        )
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Não consegui abrir a conexão.'
       if (/already exists|ITEM_USER_ALREADY_EXISTS|item_user_already_exists/i.test(msg)) {
-        setErro('Essa conexão já existe (feita noutro aparelho). Use “Recuperar conexão neste aparelho”.')
+        setErro(
+          'A conexão já existe, mas o widget não devolveu o ID. Cole o Item ID abaixo (dashboard Pluggy → Demo → ⋮ → Copiar Item ID) ou restaure um backup.',
+        )
       } else {
         setErro(msg)
       }
@@ -44,32 +55,21 @@ export function BancosPage() {
     }
   }
 
-  const recuperar = async () => {
-    setErro(null)
-    setOk(null)
-    setBusy('recuperar')
-    try {
-      const { itemIds: ids, items } = await listarItensPluggy()
-      if (ids.length === 0) {
-        setErro('Nenhuma conexão encontrada na Pluggy. Conecte pelo MeuPluggy primeiro.')
-        return
-      }
-      salvarIds(ids)
-      setOk(
-        `Recuperei ${ids.length} conexão${ids.length === 1 ? '' : 'ões'}${
-          items[0]?.nome ? ` (${items.map((i) => i.nome).join(', ')})` : ''
-        }. Agora toque em Sincronizar.`,
-      )
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Não consegui recuperar as conexões.')
-    } finally {
-      setBusy(null)
+  const salvarItemManual = () => {
+    const id = itemIdManual.trim()
+    if (!UUID_RE.test(id)) {
+      setErro('Item ID inválido. Deve ser um UUID (ex.: 4cce5c6d-b83e-…).')
+      return
     }
+    setErro(null)
+    salvarIds([...itemIds, id])
+    setItemIdManual('')
+    setOk('Item ID salvo neste aparelho. Toque em Sincronizar.')
   }
 
   const sincronizar = async () => {
     if (itemIds.length === 0) {
-      setErro('Conecte um banco (ou recupere a conexão) antes de sincronizar.')
+      setErro('Conecte / recupere a conexão (ou cole o Item ID) antes de sincronizar.')
       return
     }
     setErro(null)
@@ -100,38 +100,15 @@ export function BancosPage() {
           <a href="https://meu.pluggy.ai" target="_blank" rel="noreferrer">
             Meu Pluggy
           </a>
-          . Depois, neste app, no widget você escolhe <strong>MeuPluggy</strong> — não o Nubank com CPF (isso só vale em
-          produção liberada).
+          . Depois, neste app, no widget você escolhe <strong>MeuPluggy</strong> — não o Nubank com CPF.
         </p>
       </header>
-
-      <section className="panel stack">
-        <h2>Como ativar (uma vez)</h2>
-        <ol className="passos">
-          <li>
-            Em{' '}
-            <a href="https://meu.pluggy.ai" target="_blank" rel="noreferrer">
-              meu.pluggy.ai
-            </a>
-            , conecte o <strong>Nubank</strong> (conta e/ou cartão).
-          </li>
-          <li>
-            No Netlify: <code>PLUGGY_CLIENT_ID</code> e <code>PLUGGY_CLIENT_SECRET</code> (já feito).
-          </li>
-          <li>
-            Aqui: <strong>Conectar banco</strong> → no widget escolha <strong>MeuPluggy</strong> (não Nubank) → autorize.
-          </li>
-          <li>
-            Se tiver mais de um banco no Meu Pluggy, repita a conexão uma vez por banco.
-          </li>
-        </ol>
-      </section>
 
       <section className="panel stack">
         <h2>Conexão</h2>
         <p className="muted small">
           {itemIds.length === 0
-            ? 'Nenhum banco conectado ainda.'
+            ? 'Nenhum banco conectado ainda neste aparelho.'
             : `${itemIds.length} conexão${itemIds.length === 1 ? '' : 'ões'} · última sync ${
                 config?.pluggyUltimaSync ? formatarCurto(config.pluggyUltimaSync.slice(0, 10)) : 'nunca'
               }`}
@@ -150,11 +127,21 @@ export function BancosPage() {
           </ul>
         )}
 
-        <button type="button" className="primary-btn" disabled={busy !== null} onClick={() => void conectar()}>
+        <button
+          type="button"
+          className="primary-btn"
+          disabled={busy !== null}
+          onClick={() => void conectarOuRecuperar('conectar')}
+        >
           {busy === 'conectar' ? 'Abrindo…' : itemIds.length ? 'Conectar outro banco' : 'Conectar banco'}
         </button>
-        <button type="button" className="secondary-btn" disabled={busy !== null} onClick={() => void recuperar()}>
-          {busy === 'recuperar' ? 'Buscando…' : 'Recuperar conexão neste aparelho'}
+        <button
+          type="button"
+          className="secondary-btn"
+          disabled={busy !== null}
+          onClick={() => void conectarOuRecuperar('recuperar')}
+        >
+          {busy === 'recuperar' ? 'Abrindo…' : 'Recuperar conexão neste aparelho'}
         </button>
         <button
           type="button"
@@ -164,9 +151,32 @@ export function BancosPage() {
         >
           {busy === 'sync' ? 'Sincronizando…' : 'Sincronizar agora'}
         </button>
+
         <p className="muted small">
-          Já conectou no PC? Não precisa conectar de novo — use <strong>Recuperar conexão neste aparelho</strong> e
-          depois Sincronizar.
+          Já conectou no PC? Toque em <strong>Recuperar</strong>, escolha <strong>MeuPluggy</strong> de novo. Se a
+          Pluggy disser que já existe, o app guarda o ID sozinho. Alternativa: restaurar backup ou colar o Item ID.
+        </p>
+
+        <label className="etiqueta-campo">
+          <span>Colar Item ID (opcional)</span>
+          <input
+            value={itemIdManual}
+            onChange={(e) => setItemIdManual(e.target.value.trim())}
+            placeholder="ex.: 4cce5c6d-b83e-4741-90b4-…"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        </label>
+        <button type="button" className="mini-btn" disabled={!itemIdManual || busy !== null} onClick={salvarItemManual}>
+          Salvar Item ID
+        </button>
+        <p className="muted small">
+          No{' '}
+          <a href="https://dashboard.pluggy.ai" target="_blank" rel="noreferrer">
+            dashboard.pluggy.ai
+          </a>
+          : Demo → conexão → menu ⋮ → <strong>Copiar Item ID</strong>.
         </p>
 
         {ok && <p className="ok">{ok}</p>}
@@ -198,13 +208,12 @@ export function BancosPage() {
       </section>
 
       <section className="panel stack">
-        <h2>Enquanto isso</h2>
+        <h2>Backup</h2>
         <p className="muted small">
-          Sem as chaves da Pluggy no Netlify, o caminho automático de transição é importar o CSV da fatura — já usa as
-          mesmas etiquetas de envelope.
+          Limpar dados do site apaga a conexão neste aparelho. Exporte o backup com frequência.
         </p>
-        <Link to="/ajustes/importar-nubank" className="cta">
-          Importar CSV/PDF Nubank
+        <Link to="/ajustes" className="cta">
+          ir para backup em Ajustes
         </Link>
       </section>
     </div>

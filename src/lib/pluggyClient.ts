@@ -79,13 +79,6 @@ export async function criarConnectToken() {
   return data.accessToken
 }
 
-export async function listarItensPluggy() {
-  return chamar<{ itemIds: string[]; items: Array<{ id: string; nome: string; status: string | null }> }>(
-    '/pluggy-items',
-    { method: 'GET' },
-  )
-}
-
 export async function sincronizarPluggy(itemIds: string[], dateFrom?: string) {
   return chamar<SyncPluggyResultado>('/pluggy-sync', {
     method: 'POST',
@@ -94,7 +87,7 @@ export async function sincronizarPluggy(itemIds: string[], dateFrom?: string) {
 }
 
 type PluggyConnectErro = Error & {
-  code?: string
+  code?: string | number
   codeDescription?: string
   items?: string[]
   data?: { items?: string[]; codeDescription?: string }
@@ -114,19 +107,32 @@ declare global {
   }
 }
 
-function extrairItemsDuplicados(erro: unknown): string[] {
-  if (!erro || typeof erro !== 'object') return []
-  const e = erro as PluggyConnectErro
-  const direto = e.items ?? e.data?.items
-  if (Array.isArray(direto) && direto.length) return direto.filter(Boolean)
-  const texto = `${e.message ?? ''} ${JSON.stringify(erro)}`
-  if (!/ITEM_USER_ALREADY_EXISTS|already exists|item_user_already_exists/i.test(texto)) return []
-  const uuids = texto.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi)
-  return uuids ? [...new Set(uuids)] : []
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
+
+export function extrairItemsDuplicados(erro: unknown): string[] {
+  if (!erro) return []
+  if (typeof erro === 'string') {
+    if (!/ITEM_USER_ALREADY_EXISTS|already exists|item_user_already_exists/i.test(erro)) return []
+    return [...new Set(erro.match(UUID_RE) ?? [])]
+  }
+  if (typeof erro !== 'object') return []
+  const e = erro as PluggyConnectErro & Record<string, unknown>
+  const candidatos = [e.items, e.data?.items, (e as { itemIds?: string[] }).itemIds]
+  for (const c of candidatos) {
+    if (Array.isArray(c) && c.length) return [...new Set(c.filter((id) => typeof id === 'string' && id.length > 10))]
+  }
+  const texto = `${e.message ?? ''} ${e.codeDescription ?? ''} ${JSON.stringify(erro)}`
+  if (!/ITEM_USER_ALREADY_EXISTS|already exists|item_user_already_exists|USER_ALREADY/i.test(texto)) {
+    // Mesmo sem a frase, se o widget mandar items, já pegamos acima.
+    return []
+  }
+  return [...new Set(texto.match(UUID_RE) ?? [])]
 }
 
+export type ConnectResultado = { itemIds: string[]; nova: boolean }
+
 /** Carrega o widget Pluggy Connect sob demanda. */
-export async function abrirPluggyConnect(connectToken: string): Promise<string> {
+export async function abrirPluggyConnect(connectToken: string): Promise<ConnectResultado> {
   if (!window.PluggyConnect) {
     await new Promise<void>((resolve, reject) => {
       const script = document.createElement('script')
@@ -149,14 +155,14 @@ export async function abrirPluggyConnect(connectToken: string): Promise<string> 
       onSuccess: ({ item }) => {
         resolvido = true
         widget.destroy?.()
-        resolve(item.id)
+        resolve({ itemIds: [item.id], nova: true })
       },
       onError: (erro) => {
         resolvido = true
         widget.destroy?.()
         const duplicados = extrairItemsDuplicados(erro)
         if (duplicados.length > 0) {
-          resolve(duplicados[0])
+          resolve({ itemIds: duplicados, nova: false })
           return
         }
         const msg =
