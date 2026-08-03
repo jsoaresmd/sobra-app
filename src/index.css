@@ -61,7 +61,8 @@ html[data-page='ajustes'] {
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  touch-action: manipulation;
+  touch-action: pan-x pan-y;
+  zoom: 1;
 }
 
 html,
@@ -73,9 +74,12 @@ body,
 body {
   margin: 0;
   font-family: var(--font);
+  font-size: 16px;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-y: contain;
   background:
     radial-gradient(1200px 620px at 8% -12%, var(--glow-a) 0%, transparent 56%),
     radial-gradient(900px 520px at 104% -4%, var(--glow-b) 0%, transparent 52%),
@@ -93,8 +97,11 @@ select {
 
 input,
 select,
-textarea {
-  font-size: 16px;
+textarea,
+.orc-nome,
+.orc-valor {
+  font-size: 16px !important;
+  touch-action: manipulation;
 }
 
 a {
@@ -920,7 +927,6 @@ a,
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   font: inherit;
-  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
   background: #fff;
