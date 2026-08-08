@@ -1,5 +1,6 @@
 import type { Categoria, Config, Lancamento, Recorrente } from './types'
 import { type Ciclo, diaDoCicloParaISO, dentroDo } from './dates'
+import { contaFixaJaPaga } from './pagamentos'
 
 export type Status = 'tranquilo' | 'atencao' | 'estourando'
 
@@ -89,11 +90,12 @@ export function calcularResumo(
 
   const ativos = recorrentes.filter((r) => r.ativo)
   const jaLancado = new Set(doCiclo.map((l) => l.recorrenteId).filter(Boolean) as string[])
+  const realizados = doCiclo.filter((l) => l.data <= hoje)
 
   const previstos: Previsto[] = []
 
   for (const r of ativos.filter((r) => r.tipo === 'despesa')) {
-    if (jaLancado.has(r.id)) continue
+    if (contaFixaJaPaga(r, realizados)) continue
     const data = diaDoCicloParaISO(ciclo, r.diaDoMes)
     previstos.push({
       id: r.id,

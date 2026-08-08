@@ -46,6 +46,33 @@ export function diasAte(alvoISO: string, hojeISO: string) {
   return Math.round((alvo - hoje) / 86400000)
 }
 
+/**
+ * O que ainda vai cair nas próximas faturas: parcelas já lançadas com data
+ * futura mais as que faltam de cada compra parcelada (o banco só manda a
+ * parcela do mês, então o resto vem de `3/10`). Nunca entra na fatura de agora.
+ */
+function parcelasAVencer(doCartao: Lancamento[], fimAberta: string) {
+  const lancadas = doCartao.filter((l) => l.data > fimAberta).reduce((soma, l) => soma + l.valor, 0)
+
+  const chains = new Map<string, { valor: number; total: number; ultima: number }>()
+  for (const l of doCartao) {
+    const total = l.totalParcelas ?? 0
+    const numero = l.parcela ?? 0
+    if (total <= 1 || numero <= 0) continue
+    const base = l.descricao.replace(/\s*\(\d+\s*\/\s*\d+\)\s*$/, '').trim()
+    const chave = `${base}|${total}|${l.valor.toFixed(2)}`
+    const atual = chains.get(chave)
+    if (!atual || numero > atual.ultima) chains.set(chave, { valor: l.valor, total, ultima: numero })
+  }
+
+  const restantes = [...chains.values()].reduce(
+    (soma, c) => soma + Math.max(0, c.total - c.ultima) * c.valor,
+    0,
+  )
+
+  return restantes + lancadas
+}
+
 export function calcularFatura(conta: Conta, lancamentos: Lancamento[], hojeISO: string): Fatura | null {
   if (conta.tipo !== 'credito' || !conta.diaFechamento || !conta.diaVencimento) return null
 
@@ -54,46 +81,43 @@ export function calcularFatura(conta: Conta, lancamentos: Lancamento[], hojeISO:
   const proximoFechamento = proximaOcorrencia(ultimoFechamento, conta.diaFechamento)
   const fechamentoAnterior = ultimaOcorrencia(new Date(ultimoFechamento.getTime() - 86400000), conta.diaFechamento)
 
-  // Só o que já caiu na fatura até hoje — parcelas futuras não entram no valor “de agora”.
-  const doCartao = lancamentos.filter(
-    (l) => l.contaId === conta.id && l.tipo === 'despesa' && l.data <= hojeISO,
-  )
+  const doCartao = lancamentos.filter((l) => l.contaId === conta.id && l.tipo === 'despesa')
 
   const somaEntre = (deExclusivo: string, ateInclusivo: string) =>
     doCartao.filter((l) => l.data > deExclusivo && l.data <= ateInclusivo).reduce((total, l) => total + l.valor, 0)
 
+  const inicioFechada = toISO(fechamentoAnterior)
   const inicioAberta = toISO(ultimoFechamento)
   const fimAberta = toISO(proximoFechamento)
 
-  // Valor digitado à mão no app (não o balance bruto da Pluggy, que costuma ser o total em aberto).
-  const informadoVale =
-    conta.faturaInformada !== undefined &&
-    conta.faturaInformadaEm !== undefined &&
-    conta.faturaInformadaEm >= inicioAberta &&
-    conta.faturaInformadaEm <= hojeISO
-
-  const abertaCalculada = somaEntre(inicioAberta, hojeISO < fimAberta ? hojeISO : fimAberta)
-  const abertaFinal = informadoVale
-    ? conta.faturaInformadaEm === hojeISO
-      ? conta.faturaInformada!
-      : conta.faturaInformada! + somaEntre(conta.faturaInformadaEm!, hojeISO)
-    : abertaCalculada
-
-  const fechada = somaEntre(toISO(fechamentoAnterior), inicioAberta)
-  const futuras = lancamentos
-    .filter((l) => l.contaId === conta.id && l.tipo === 'despesa' && l.data > hojeISO)
-    .reduce((total, l) => total + l.valor, 0)
+  const fechada = somaEntre(inicioFechada, inicioAberta)
+  const aberta = somaEntre(inicioAberta, hojeISO < fimAberta ? hojeISO : fimAberta)
+  const futuras = parcelasAVencer(doCartao, fimAberta)
 
   const venceEmFechada = proximaOcorrencia(ultimoFechamento, conta.diaVencimento)
   const venceEmAberta = proximaOcorrencia(proximoFechamento, conta.diaVencimento)
   const fechadaPendente = venceEmFechada >= hoje ? fechada : 0
 
-  /** O que importa agora: fatura fechada a pagar, ou a que ainda está aberta. */
-  const atual = fechadaPendente > 0 ? fechadaPendente : abertaFinal
+  /** O que importa agora: a fatura fechada a pagar, ou a que ainda está aberta. */
+  const calculadaAtual = fechadaPendente > 0 ? fechadaPendente : aberta
+
+  // Âncora manual: o valor conferido no app do banco vale mais que a soma dos
+  // lançamentos, e só as compras da mesma fatura entram por cima.
+  const inicioJanelaAtual = fechadaPendente > 0 ? inicioFechada : inicioAberta
+  const fimJanelaAtual = fechadaPendente > 0 ? inicioAberta : hojeISO < fimAberta ? hojeISO : fimAberta
+  const informadoVale =
+    conta.faturaInformada !== undefined &&
+    conta.faturaInformadaEm !== undefined &&
+    conta.faturaInformadaEm >= inicioJanelaAtual &&
+    conta.faturaInformadaEm <= hojeISO
+
+  const atual = informadoVale
+    ? conta.faturaInformada! + somaEntre(conta.faturaInformadaEm!, fimJanelaAtual)
+    : calculadaAtual
 
   return {
     conta,
-    aberta: abertaFinal,
+    aberta,
     fechaEm: fimAberta,
     venceEmAberta: toISO(venceEmAberta),
     diasParaFechar: diasAte(fimAberta, hojeISO),

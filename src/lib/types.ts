@@ -22,6 +22,8 @@ export type Config = {
   /** ItemIds da Pluggy (Meu Pluggy / Open Finance) conectados a este aparelho. */
   pluggyItemIds?: string[]
   pluggyUltimaSync?: string
+  /** Correções de dados já aplicadas, para não rodarem de novo a cada abertura. */
+  migracoes?: string[]
   pessoas: Pessoa[]
   onboardingFeito: boolean
 }

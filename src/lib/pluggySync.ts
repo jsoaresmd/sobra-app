@@ -34,11 +34,20 @@ function txComoNubank(tx: TxPluggySync, contaTipo: TipoConta): TxNubank {
   const estabelecimento = nomeSemParcela(titulo)
   const valor = Math.abs(tx.amount)
 
-  // No cartão, a data da fatura pode ser futura; a compra é purchaseDate.
   const dataFatura = tx.date.slice(0, 10)
   const dataCompra = tx.creditCardMetadata?.purchaseDate?.slice(0, 10)
-  const data =
-    contaTipo === 'credito' && dataCompra ? dataCompra : dataFatura
+  const numeroParcela = metaParcela ?? parcela
+  const totalDeParcelas = metaTotal ?? totalParcelas ?? 1
+
+  // Da 2ª parcela em diante a data que vale é a da fatura que cobra aquela
+  // parcela; senão a compra inteira cairia no mês em que foi feita.
+  const usarDataDaCompra =
+    contaTipo === 'credito' &&
+    Boolean(dataCompra) &&
+    dataCompra! < dataFatura &&
+    (totalDeParcelas <= 1 || (numeroParcela ?? 1) === 1)
+
+  const data = usarDataDaCompra ? dataCompra! : dataFatura
 
   let tipo: 'despesa' | 'receita'
   if (contaTipo === 'credito') {
@@ -103,15 +112,6 @@ async function upsertConta(contaP: ContaPluggySync, ordem: number, hoje: string)
 
   if (local) {
     await db.contas.update(local.id, mudancas)
-    if (tipo === 'credito') {
-      await db.contas
-        .where('id')
-        .equals(local.id)
-        .modify((c) => {
-          delete c.faturaInformada
-          delete c.faturaInformadaEm
-        })
-    }
     return local.id
   }
 

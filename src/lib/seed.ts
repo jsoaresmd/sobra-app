@@ -269,13 +269,24 @@ async function alinharCategoriasNubank() {
   })
 }
 
+/** Roda `acao` uma única vez por aparelho. */
+async function umaVez(chave: string, acao: () => Promise<void>) {
+  const config = await db.config.get('app')
+  if (!config || config.migracoes?.includes(chave)) return
+  await acao()
+  await db.config.update('app', { migracoes: [...(config.migracoes ?? []), chave] })
+}
+
+/** Faturas antigas herdaram o `balance` da Pluggy, que é o total em aberto e não a fatura. */
 async function limparFaturaPluggyInflada() {
-  await db.contas
-    .filter((c) => c.tipo === 'credito' && c.faturaInformada !== undefined)
-    .modify((c) => {
-      delete c.faturaInformada
-      delete c.faturaInformadaEm
-    })
+  await umaVez('fatura-pluggy-inflada', async () => {
+    await db.contas
+      .filter((c) => c.tipo === 'credito' && c.faturaInformada !== undefined)
+      .modify((c) => {
+        delete c.faturaInformada
+        delete c.faturaInformadaEm
+      })
+  })
 }
 
 /** Cria os dados iniciais na primeira abertura e limpa duplicatas de seeds antigos. */

@@ -2,15 +2,15 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useDados } from '../contexts/DadosContext'
-import { TermometroCartao } from '../components/TermometroCartao'
+import { CartaoResumo } from '../components/CartaoResumo'
 import { formatBRL } from '../lib/money'
-import { dentroDo } from '../lib/dates'
+import { dentroDo, formatarCurto } from '../lib/dates'
 import { db } from '../lib/db'
 import { sincronizarBancosAbertos } from '../lib/sincronizarBancos'
 import { ROTULO_TIPO_ENVELOPE } from '../lib/envelopes'
 
 export function HojePage() {
-  const { resumo, config, lancamentos, termometros, envelopes, hoje, categorias } = useDados()
+  const { resumo, config, lancamentos, faturas, envelopes, hoje, categorias, caixa } = useDados()
   const regras = useLiveQuery(() => db.regrasImportacao.toArray(), [], [])
   const [syncBusy, setSyncBusy] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
@@ -110,8 +110,34 @@ export function HojePage() {
         )}
       </section>
 
-      {termometros.map((t) => (
-        <TermometroCartao key={t.fatura.conta.id} termometro={t} />
+      {caixa && (
+        <section className="panel stack resumo-panel">
+          <div className="row-between">
+            <h2>Sobra até {formatarCurto(caixa.proximoSalario)}</h2>
+            <span className="muted small">{caixa.diasAteSalario} dias</span>
+          </div>
+          <p className={`hero-num ${caixa.sobraReal < 0 ? '' : 'poupanca'}`}>{formatBRL(caixa.sobraReal)}</p>
+          <hr />
+          <p className="linha-resumo">
+            <span>Dinheiro nas contas</span>
+            <strong>{formatBRL(caixa.saldoBanco)}</strong>
+          </p>
+          {caixa.compromissos.map((c) => (
+            <p className="linha-resumo" key={c.id}>
+              <span>{c.descricao}</span>
+              <strong>−{formatBRL(c.valor)}</strong>
+            </p>
+          ))}
+          {caixa.parcelasFuturas > 0 && (
+            <p className="muted small">
+              Parcelas de faturas seguintes: {formatBRL(caixa.parcelasFuturas)} — não entram nesta conta.
+            </p>
+          )}
+        </section>
+      )}
+
+      {faturas.map((f) => (
+        <CartaoResumo key={f.conta.id} fatura={f} />
       ))}
 
       <section className="panel">

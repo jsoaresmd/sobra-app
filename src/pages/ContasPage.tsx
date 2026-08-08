@@ -102,16 +102,19 @@ export function ContasPage() {
                       <CampoMoeda valor={conta.limite ?? 0} onChange={(v) => atualizar(conta.id, { limite: v })} />
                     </label>
                     <label>
-                      Fatura atual
+                      Fatura atual no banco
                       <CampoMoeda
                         valor={conta.faturaInformada ?? 0}
                         onChange={(v) => atualizar(conta.id, { faturaInformada: v, faturaInformadaEm: hoje })}
                       />
+                      <span className="ajuda">Copie o valor do app do banco. O app soma só as compras depois de hoje.</span>
                     </label>
                     {fatura && (
                       <p className="muted small">
-                        Fatura aberta: <strong>{formatBRL(fatura.aberta)}</strong> · fecha {formatarCurto(fatura.fechaEm)} ·
-                        vence {formatarCurto(fatura.venceEmAberta)}
+                        App calcula <strong>{formatBRL(fatura.atual)}</strong>
+                        {fatura.fechada > 0
+                          ? ` (fechada, vence ${formatarCurto(fatura.venceEmFechada)})`
+                          : ` (aberta, fecha ${formatarCurto(fatura.fechaEm)})`}
                         {fatura.futuras > 0 && ` · ${formatBRL(fatura.futuras)} em faturas seguintes`}
                       </p>
                     )}

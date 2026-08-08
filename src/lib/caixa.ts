@@ -1,6 +1,7 @@
 import { fromISO, toISO, type Ciclo, dentroDo, diaDoCicloParaISO } from './dates'
 
 import { diasAte, proximaOcorrencia, type Fatura } from './fatura'
+import { contaFixaJaPaga } from './pagamentos'
 import type { Config, Conta, Lancamento, Recorrente } from './types'
 
 export type Compromisso = {
@@ -24,6 +25,8 @@ export type Caixa = {
   /** O que sobra de dinheiro de verdade até a próxima renda entrar. */
   sobraReal: number
   porDia: number
+  /** Parcelas que caem em faturas futuras. Informativo: não entra na conta de agora. */
+  parcelasFuturas: number
 }
 
 /**
@@ -64,13 +67,13 @@ export function calcularCaixa(
     })
   }
 
-  const jaLancado = new Set(
-    lancamentos.filter((l) => dentroDo(ciclo, l.data)).map((l) => l.recorrenteId).filter(Boolean) as string[],
-  )
   const ehCartao = (contaId: string | null) => contas.find((c) => c.id === contaId)?.tipo === 'credito'
+  // Só o que saiu da conta: gasto no cartão já está dentro da fatura acima.
+  const pagosNoCiclo = lancamentos.filter((l) => dentroDo(ciclo, l.data) && l.data <= hoje && !ehCartao(l.contaId))
 
   for (const r of recorrentes) {
-    if (!r.ativo || r.tipo !== 'despesa' || ehCartao(r.contaId) || jaLancado.has(r.id)) continue
+    if (!r.ativo || r.tipo !== 'despesa' || ehCartao(r.contaId)) continue
+    if (contaFixaJaPaga(r, pagosNoCiclo)) continue
     // Se a data já passou e nada foi lançado, a conta continua em aberto: o
     // valor segue reservado até ser marcada como paga.
     const data = diaDoCicloParaISO(ciclo, r.diaDoMes)
@@ -94,5 +97,6 @@ export function calcularCaixa(
     totalCompromissos,
     sobraReal,
     porDia: sobraReal / diasAteSalario,
+    parcelasFuturas: faturas.reduce((total, f) => total + f.futuras, 0),
   }
 }

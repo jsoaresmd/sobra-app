@@ -12,7 +12,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export function BancosPage() {
   const navigate = useNavigate()
-  const { config, envelopes, hoje, contas, categorias } = useDados()
+  const { config, envelopes, hoje, contas, categorias, faturas } = useDados()
   const regras = useLiveQuery(() => db.regrasImportacao.toArray(), [], [])
 
   const [busy, setBusy] = useState<'conectar' | 'sync' | 'recuperar' | null>(null)
@@ -112,7 +112,7 @@ export function BancosPage() {
                 </span>
                 <strong className="muted small">
                   {c.tipo === 'credito'
-                    ? formatBRL(c.faturaInformada ?? 0)
+                    ? formatBRL(faturas.find((f) => f.conta.id === c.id)?.atual ?? 0)
                     : formatBRL(c.saldo ?? 0)}
                 </strong>
               </li>
