@@ -54,25 +54,14 @@ export function calcularCaixa(
   const compromissos: Compromisso[] = []
 
   for (const fatura of faturas) {
-    // Fatura fechada ainda não paga tem prioridade: é o que sai da conta neste mês.
-    // Só caímos na aberta quando não há fechada pendente (antes do fechamento).
-    if (fatura.fechada > 0) {
-      compromissos.push({
-        id: `${fatura.conta.id}-fechada`,
-        descricao: `Fatura ${fatura.conta.nome}`,
-        valor: fatura.fechada,
-        data: fatura.venceEmFechada,
-        tipo: 'fatura',
-      })
-    } else if (fatura.aberta > 0) {
-      compromissos.push({
-        id: `${fatura.conta.id}-aberta`,
-        descricao: `Fatura ${fatura.conta.nome}`,
-        valor: fatura.aberta,
-        data: fatura.venceEmAberta,
-        tipo: 'fatura',
-      })
-    }
+    if (fatura.atual <= 0) continue
+    compromissos.push({
+      id: `${fatura.conta.id}-atual`,
+      descricao: `Fatura ${fatura.conta.nome}`,
+      valor: fatura.atual,
+      data: fatura.fechada > 0 ? fatura.venceEmFechada : fatura.venceEmAberta,
+      tipo: 'fatura',
+    })
   }
 
   const jaLancado = new Set(

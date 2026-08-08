@@ -11,7 +11,7 @@ import type { Envelope, TipoEnvelope } from '../lib/types'
 const CORES = ['#2f9e6e', '#e8734a', '#3f7ec4', '#8a6cc4', '#d4557f', '#c9821f', '#6f7ce0', '#14855f']
 
 export function EnvelopesPage() {
-  const { envelopes, resumo, categorias, recorrentes, lancamentos } = useDados()
+  const { envelopes, resumo, categorias, recorrentes, lancamentos, hoje } = useDados()
   const [editandoValores, setEditandoValores] = useState(false)
 
   const ativos = useMemo(() => envelopes.filter((e) => !e.arquivado), [envelopes])
@@ -24,11 +24,12 @@ export function EnvelopesPage() {
     if (!resumo) return mapa
     for (const l of lancamentos) {
       if (l.tipo !== 'despesa' || !l.envelopeId) continue
+      if (l.data > hoje) continue
       if (!dentroDo(resumo.ciclo, l.data)) continue
       mapa.set(l.envelopeId, (mapa.get(l.envelopeId) ?? 0) + l.valor)
     }
     return mapa
-  }, [lancamentos, resumo])
+  }, [lancamentos, resumo, hoje])
 
   const totalOrcamento = ativos.filter((e) => e.tipo !== 'investimento').reduce((s, e) => s + e.valorMensal, 0)
   const totalGasto = ativos
@@ -212,14 +213,14 @@ export function EnvelopesPage() {
 
       {fixos.length > 0 && (
         <section className="stack">
-          <h2 className="secao-titulo">Fixos</h2>
+          <h2 className="secao-titulo">Contas fixas</h2>
           <ul className="lista-envelopes">{fixos.map(renderCard)}</ul>
         </section>
       )}
 
       {variaveis.length > 0 && (
         <section className="stack">
-          <h2 className="secao-titulo">Variáveis</h2>
+          <h2 className="secao-titulo">Planejamento</h2>
           <ul className="lista-envelopes">{variaveis.map(renderCard)}</ul>
         </section>
       )}

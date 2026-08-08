@@ -1,36 +1,68 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useDados } from '../contexts/DadosContext'
-import { SeletorCiclo } from '../components/SeletorCiclo'
-import { SaldoReal } from '../components/SaldoReal'
 import { TermometroCartao } from '../components/TermometroCartao'
-import { formatBRL, formatBRLCurto } from '../lib/money'
-import { formatarCurto, formatarDia } from '../lib/dates'
-import { ROTULO_STATUS } from '../lib/budget'
-import { confirmarRecorrente } from '../lib/acoes'
+import { formatBRL } from '../lib/money'
+import { dentroDo } from '../lib/dates'
 import { db } from '../lib/db'
 import { sincronizarBancosAbertos } from '../lib/sincronizarBancos'
+import { ROTULO_TIPO_ENVELOPE } from '../lib/envelopes'
 
 export function HojePage() {
-  const { resumo, config, categorias, contas, lancamentos, termometros, recorrentes, envelopes, hoje } =
-    useDados()
+  const { resumo, config, lancamentos, termometros, envelopes, hoje, categorias } = useDados()
   const regras = useLiveQuery(() => db.regrasImportacao.toArray(), [], [])
   const [syncBusy, setSyncBusy] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [syncErro, setSyncErro] = useState<string | null>(null)
 
+  const gastoPorEnvelope = useMemo(() => {
+    const mapa = new Map<string, number>()
+    if (!resumo) return mapa
+    for (const l of lancamentos) {
+      if (l.tipo !== 'despesa' || !l.envelopeId) continue
+      if (l.data > hoje) continue
+      if (!dentroDo(resumo.ciclo, l.data)) continue
+      mapa.set(l.envelopeId, (mapa.get(l.envelopeId) ?? 0) + l.valor)
+    }
+    return mapa
+  }, [lancamentos, resumo, hoje])
+
   if (!resumo) return null
 
   const conectado = (config?.pluggyItemIds?.length ?? 0) > 0
-  const usado = resumo.teto > 0 ? Math.min(1, resumo.comprometido / resumo.teto) : 0
-  const nomeCategoria = (id: string | null) => categorias.find((c) => c.id === id)
-  const nomeConta = (id: string | null) => contas.find((c) => c.id === id)
+  const ativos = envelopes.filter((e) => !e.arquivado && e.tipo !== 'investimento')
+  const planejamento = ativos.filter((e) => e.tipo === 'variavel')
+  const fixos = ativos.filter((e) => e.tipo === 'fixo')
+  const semEtiqueta = lancamentos.some(
+    (l) => l.origem === 'importado' && l.tipo === 'despesa' && !l.envelopeId && l.data <= hoje,
+  )
 
-  const ultimos = [...lancamentos]
-    .filter((l) => l.data <= hoje)
-    .sort((a, b) => (b.data === a.data ? b.criadoEm.localeCompare(a.criadoEm) : b.data.localeCompare(a.data)))
-    .slice(0, 5)
+  const card = (envelope: (typeof ativos)[0]) => {
+    const gasto = gastoPorEnvelope.get(envelope.id) ?? 0
+    const orcamento = envelope.valorMensal
+    const sobra = orcamento - gasto
+    const estourado = orcamento > 0 ? sobra < 0 : false
+    if (orcamento <= 0 && gasto <= 0) return null
+    return (
+      <li key={envelope.id}>
+        <Link to={`/envelopes/${envelope.id}`} className="lancamento-link">
+          <span className="previsto-emoji">{envelope.emoji}</span>
+          <span className="previsto-info">
+            <strong>{envelope.nome}</strong>
+            <span className="muted small">
+              {orcamento > 0
+                ? estourado
+                  ? `passou ${formatBRL(Math.abs(sobra))}`
+                  : `sobra ${formatBRL(sobra)}`
+                : `gasto ${formatBRL(gasto)}`}
+            </span>
+          </span>
+          <span className={`previsto-valor ${estourado ? '' : 'receita'}`}>{formatBRL(gasto)}</span>
+        </Link>
+      </li>
+    )
+  }
 
   const sincronizar = async () => {
     if (!config) return
@@ -39,7 +71,7 @@ export function HojePage() {
     setSyncErro(null)
     try {
       const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias)
-      setSyncMsg(`${r.contas} contas · ${r.novas} novo${r.novas === 1 ? '' : 's'}`)
+      setSyncMsg(`${r.novas} novo${r.novas === 1 ? '' : 's'}`)
     } catch (e) {
       setSyncErro(e instanceof Error ? e.message : 'Falha ao sincronizar.')
     } finally {
@@ -50,8 +82,8 @@ export function HojePage() {
   return (
     <div className="stack gap-lg">
       <header className="page-head">
-        <p className="eyebrow">Controle em tempo real</p>
-        <SeletorCiclo />
+        <p className="eyebrow">Sobra</p>
+        <h1>Quanto posso gastar</h1>
       </header>
 
       <section className="panel stack sync-panel">
@@ -66,14 +98,12 @@ export function HojePage() {
         )}
         {syncMsg && <p className="ok">{syncMsg}</p>}
         {syncErro && <p className="error">{syncErro}</p>}
-        {lancamentos.some((l) => l.origem === 'importado' && l.tipo === 'despesa' && !l.envelopeId) && (
+        {semEtiqueta && (
           <Link to="/ajustes/etiquetar" className="cta">
-            Etiquetar gastos sem envelope →
+            Etiquetar gastos sem área →
           </Link>
         )}
       </section>
-
-      <SaldoReal />
 
       {termometros.map((t) => (
         <TermometroCartao key={t.fatura.conta.id} termometro={t} />
@@ -81,116 +111,31 @@ export function HojePage() {
 
       <section className="panel">
         <div className="row-between">
-          <h2>Orçamento do período</h2>
+          <h2>Planejamento</h2>
           <Link to="/envelopes" className="cta">
-            envelopes
-          </Link>
-        </div>
-        <div className="row-between">
-          <span className="muted small">
-            {resumo.disponivel >= 0 ? 'ainda dá para gastar' : 'acima do orçamento em'}
-          </span>
-          <strong className={`orcamento-num ${resumo.disponivel < 0 ? 'negativo' : ''}`}>
-            {formatBRL(Math.abs(resumo.disponivel))}
-          </strong>
-        </div>
-        <div className="cat-track" aria-hidden="true">
-          <span className={`cat-fill status-${resumo.status}`} style={{ width: `${usado * 100}%` }} />
-        </div>
-        <div className="row-between small muted">
-          <span>{formatBRLCurto(resumo.comprometido)} comprometido</span>
-          <span>de {formatBRLCurto(resumo.teto)}</span>
-        </div>
-        <p className="muted small">
-          {ROTULO_STATUS[resumo.status]} · projeção de {formatBRL(resumo.projecao)} até {formatarCurto(resumo.ciclo.fim)}
-        </p>
-      </section>
-
-      <section className="stat-grid tres">
-        <div className="stat">
-          <span className="stat-num">{formatBRLCurto(resumo.gastoRealizado)}</span>
-          <span className="stat-lbl">já saiu</span>
-        </div>
-        <div className="stat">
-          <span className="stat-num">{formatBRLCurto(resumo.aindaVaiCair)}</span>
-          <span className="stat-lbl">ainda vai cair</span>
-        </div>
-        <div className="stat">
-          <span className="stat-num">{formatBRLCurto(resumo.fixos)}</span>
-          <span className="stat-lbl">contas fixas</span>
-        </div>
-      </section>
-
-      {resumo.previstos.length > 0 && (
-        <section className="panel">
-          <div className="row-between">
-            <h2>Ainda vai cair</h2>
-            <span className="muted small">{formatBRL(resumo.aindaVaiCair)}</span>
-          </div>
-          <ul className="lista-previstos">
-            {resumo.previstos.slice(0, 6).map((previsto) => {
-              const categoria = nomeCategoria(previsto.categoriaId)
-              const recorrente = recorrentes.find((r) => r.id === previsto.id)
-              return (
-                <li key={`${previsto.origem}-${previsto.id}`} className={previsto.atrasado ? 'atrasado' : ''}>
-                  <span className="previsto-emoji">{categoria?.emoji ?? '📌'}</span>
-                  <span className="previsto-info">
-                    <strong>{previsto.descricao}</strong>
-                    <span className="muted small">
-                      {previsto.atrasado ? 'previsto para ' : ''}
-                      {formatarDia(previsto.data)}
-                      {previsto.origem === 'recorrente' ? ' · fixo' : ' · agendado'}
-                    </span>
-                  </span>
-                  <span className="previsto-valor">{formatBRL(previsto.valor)}</span>
-                  {recorrente && (
-                    <button
-                      type="button"
-                      className="mini-btn"
-                      onClick={() => void confirmarRecorrente(recorrente, previsto.data, envelopes)}
-                    >
-                      caiu
-                    </button>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-      )}
-
-      <section className="panel">
-        <div className="row-between">
-          <h2>Últimos lançamentos</h2>
-          <Link to="/extrato" className="cta">
             ver tudo
           </Link>
         </div>
-        {ultimos.length === 0 ? (
-          <p className="muted small">Nenhum lançamento.</p>
-        ) : (
-          <ul className="lista-lancamentos">
-            {ultimos.map((l) => {
-              const categoria = nomeCategoria(l.categoriaId)
-              const conta = nomeConta(l.contaId)
-              return (
-                <li key={l.id}>
-                  <span className="previsto-emoji">{categoria?.emoji ?? '💸'}</span>
-                  <span className="previsto-info">
-                    <strong>{l.descricao || categoria?.nome || 'Lançamento'}</strong>
-                    <span className="muted small">
-                      {formatarCurto(l.data)}
-                      {conta ? ` · ${conta.nome}` : ''}
-                      {l.totalParcelas ? ` · ${l.parcela}/${l.totalParcelas}` : ''}
-                    </span>
-                  </span>
-                  <span className={`previsto-valor ${l.tipo === 'receita' ? 'receita' : ''}`}>
-                    {l.tipo === 'receita' ? '+' : '−'} {formatBRL(l.valor)}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
+        <ul className="lista-lancamentos">{planejamento.map(card).filter(Boolean)}</ul>
+        {planejamento.every((e) => (gastoPorEnvelope.get(e.id) ?? 0) === 0 && e.valorMensal <= 0) && (
+          <p className="muted small">
+            Defina orçamentos em{' '}
+            <Link to="/envelopes" className="cta">
+              Envelopes
+            </Link>
+            .
+          </p>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="row-between">
+          <h2>Contas fixas</h2>
+          <span className="muted small">{ROTULO_TIPO_ENVELOPE.fixo}</span>
+        </div>
+        <ul className="lista-lancamentos">{fixos.map(card).filter(Boolean)}</ul>
+        {fixos.every((e) => (gastoPorEnvelope.get(e.id) ?? 0) === 0 && e.valorMensal <= 0) && (
+          <p className="muted small">Nenhuma conta fixa com movimento neste período.</p>
         )}
       </section>
     </div>

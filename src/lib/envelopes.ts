@@ -208,7 +208,7 @@ export function envelopePorRecorrente(envelopes: Envelope[], recorrenteId: strin
 }
 
 export const ROTULO_TIPO_ENVELOPE: Record<Envelope['tipo'], string> = {
-  fixo: 'Fixo',
-  variavel: 'Variável',
+  fixo: 'Conta fixa',
+  variavel: 'Planejamento',
   investimento: 'Investimento',
 }

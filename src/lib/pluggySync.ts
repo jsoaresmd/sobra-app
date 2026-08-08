@@ -82,8 +82,8 @@ async function upsertConta(contaP: ContaPluggySync, ordem: number, hoje: string)
     mudancas.diaFechamento = diaDeISO(contaP.creditData?.balanceCloseDate) ?? local?.diaFechamento ?? 4
     mudancas.diaVencimento = diaDeISO(contaP.creditData?.balanceDueDate) ?? local?.diaVencimento ?? 11
     mudancas.limite = contaP.creditData?.creditLimit ?? local?.limite
-    mudancas.faturaInformada = Math.abs(contaP.balance)
-    mudancas.faturaInformadaEm = hoje
+    // Não usa balance da Pluggy como fatura: costuma ser o total em aberto (várias faturas/parcelas),
+    // não o valor da fatura atual do Nubank.
   } else {
     mudancas.saldo = contaP.balance
     mudancas.saldoEm = hoje
@@ -91,6 +91,15 @@ async function upsertConta(contaP: ContaPluggySync, ordem: number, hoje: string)
 
   if (local) {
     await db.contas.update(local.id, mudancas)
+    if (tipo === 'credito') {
+      await db.contas
+        .where('id')
+        .equals(local.id)
+        .modify((c) => {
+          delete c.faturaInformada
+          delete c.faturaInformadaEm
+        })
+    }
     return local.id
   }
 
@@ -106,8 +115,6 @@ async function upsertConta(contaP: ContaPluggySync, ordem: number, hoje: string)
     diaFechamento: mudancas.diaFechamento,
     diaVencimento: mudancas.diaVencimento,
     limite: mudancas.limite,
-    faturaInformada: mudancas.faturaInformada,
-    faturaInformadaEm: mudancas.faturaInformadaEm,
     saldo: mudancas.saldo,
     saldoEm: mudancas.saldoEm,
   }

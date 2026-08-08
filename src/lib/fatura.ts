@@ -12,8 +12,10 @@ export type Fatura = {
   /** Fatura já fechada e ainda não vencida. */
   fechada: number
   venceEmFechada: string
-  /** Compras já feitas que só entram nas faturas seguintes (parcelas). */
+  /** Parcelas com data futura (ainda não “gastas”). */
   futuras: number
+  /** Valor da fatura que importa agora (fechada pendente, senão a aberta). */
+  atual: number
   limiteUsado: number | null
   /** True quando o valor veio do que foi conferido no app do banco. */
   usandoValorInformado: boolean
@@ -52,7 +54,10 @@ export function calcularFatura(conta: Conta, lancamentos: Lancamento[], hojeISO:
   const proximoFechamento = proximaOcorrencia(ultimoFechamento, conta.diaFechamento)
   const fechamentoAnterior = ultimaOcorrencia(new Date(ultimoFechamento.getTime() - 86400000), conta.diaFechamento)
 
-  const doCartao = lancamentos.filter((l) => l.contaId === conta.id && l.tipo === 'despesa')
+  // Só o que já caiu na fatura até hoje — parcelas futuras não entram no valor “de agora”.
+  const doCartao = lancamentos.filter(
+    (l) => l.contaId === conta.id && l.tipo === 'despesa' && l.data <= hojeISO,
+  )
 
   const somaEntre = (deExclusivo: string, ateInclusivo: string) =>
     doCartao.filter((l) => l.data > deExclusivo && l.data <= ateInclusivo).reduce((total, l) => total + l.valor, 0)
@@ -60,33 +65,44 @@ export function calcularFatura(conta: Conta, lancamentos: Lancamento[], hojeISO:
   const inicioAberta = toISO(ultimoFechamento)
   const fimAberta = toISO(proximoFechamento)
 
+  // Valor digitado à mão no app (não o balance bruto da Pluggy, que costuma ser o total em aberto).
   const informadoVale =
     conta.faturaInformada !== undefined &&
     conta.faturaInformadaEm !== undefined &&
-    conta.faturaInformadaEm > inicioAberta &&
-    conta.faturaInformadaEm <= fimAberta
+    conta.faturaInformadaEm >= inicioAberta &&
+    conta.faturaInformadaEm <= hojeISO
 
-  const aberta = informadoVale
-    ? conta.faturaInformada! + somaEntre(conta.faturaInformadaEm!, fimAberta)
-    : somaEntre(inicioAberta, fimAberta)
+  const abertaCalculada = somaEntre(inicioAberta, hojeISO < fimAberta ? hojeISO : fimAberta)
+  const abertaFinal = informadoVale
+    ? conta.faturaInformadaEm === hojeISO
+      ? conta.faturaInformada!
+      : conta.faturaInformada! + somaEntre(conta.faturaInformadaEm!, hojeISO)
+    : abertaCalculada
 
   const fechada = somaEntre(toISO(fechamentoAnterior), inicioAberta)
-  const futuras = doCartao.filter((l) => l.data > fimAberta).reduce((total, l) => total + l.valor, 0)
+  const futuras = lancamentos
+    .filter((l) => l.contaId === conta.id && l.tipo === 'despesa' && l.data > hojeISO)
+    .reduce((total, l) => total + l.valor, 0)
 
   const venceEmFechada = proximaOcorrencia(ultimoFechamento, conta.diaVencimento)
   const venceEmAberta = proximaOcorrencia(proximoFechamento, conta.diaVencimento)
+  const fechadaPendente = venceEmFechada >= hoje ? fechada : 0
+
+  /** O que importa agora: fatura fechada a pagar, ou a que ainda está aberta. */
+  const atual = fechadaPendente > 0 ? fechadaPendente : abertaFinal
 
   return {
     conta,
-    aberta,
+    aberta: abertaFinal,
     fechaEm: fimAberta,
     venceEmAberta: toISO(venceEmAberta),
     diasParaFechar: diasAte(fimAberta, hojeISO),
-    fechada: venceEmFechada >= hoje ? fechada : 0,
+    fechada: fechadaPendente,
     venceEmFechada: toISO(venceEmFechada),
     futuras,
-    limiteUsado: conta.limite ? (aberta + fechada + futuras) / conta.limite : null,
-    usandoValorInformado: informadoVale,
+    atual,
+    limiteUsado: conta.limite ? atual / conta.limite : null,
+    usandoValorInformado: Boolean(informadoVale),
   }
 }
 
@@ -116,7 +132,8 @@ export function calcularTetoFatura(config: Config, contas: Conta[], recorrentes:
 }
 
 export function montarTermometro(fatura: Fatura, teto: number): TermometroFatura {
-  const espaco = teto - fatura.aberta
+  const valor = fatura.atual
+  const espaco = teto - valor
   const dias = Math.max(1, fatura.diasParaFechar)
 
   return {
@@ -124,7 +141,7 @@ export function montarTermometro(fatura: Fatura, teto: number): TermometroFatura
     teto,
     espaco,
     porDia: espaco / dias,
-    percentual: teto > 0 ? fatura.aberta / teto : 0,
+    percentual: teto > 0 ? valor / teto : 0,
     estourou: espaco < 0,
   }
 }

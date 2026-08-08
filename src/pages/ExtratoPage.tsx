@@ -5,18 +5,19 @@ import { formatBRL } from '../lib/money'
 import { dentroDo, formatarDiaSemana } from '../lib/dates'
 
 export function ExtratoPage() {
-  const { resumo, lancamentos, categorias, contas, config } = useDados()
+  const { resumo, lancamentos, categorias, contas, config, hoje } = useDados()
   const [filtroPessoa, setFiltroPessoa] = useState<string | null>(null)
   const [filtroCategoria, setFiltroCategoria] = useState<string | null>(null)
 
   const doCiclo = useMemo(() => {
     if (!resumo) return []
     return lancamentos
+      .filter((l) => l.data <= hoje)
       .filter((l) => dentroDo(resumo.ciclo, l.data))
       .filter((l) => !filtroPessoa || l.pessoaId === filtroPessoa)
       .filter((l) => !filtroCategoria || l.categoriaId === filtroCategoria)
       .sort((a, b) => (b.data === a.data ? b.criadoEm.localeCompare(a.criadoEm) : b.data.localeCompare(a.data)))
-  }, [lancamentos, resumo, filtroPessoa, filtroCategoria])
+  }, [lancamentos, resumo, filtroPessoa, filtroCategoria, hoje])
 
   const porDia = useMemo(() => {
     const mapa = new Map<string, typeof doCiclo>()

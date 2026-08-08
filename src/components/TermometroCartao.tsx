@@ -4,50 +4,43 @@ import { formatarCurto } from '../lib/dates'
 import type { TermometroFatura } from '../lib/fatura'
 
 export function TermometroCartao({ termometro }: { termometro: TermometroFatura }) {
-  const { fatura, teto, espaco, porDia, percentual, estourou } = termometro
+  const { fatura, teto, espaco, percentual, estourou } = termometro
   const largura = Math.min(100, Math.max(0, percentual * 100))
   const dias = fatura.diasParaFechar
-
   const quandoFecha = dias <= 0 ? 'fecha hoje' : dias === 1 ? 'fecha amanhã' : `fecha em ${dias} dias`
+  const rotulo = fatura.fechada > 0 ? 'Fatura fechada' : 'Fatura aberta'
 
   return (
     <section className={`termometro ${estourou ? 'estourou' : ''}`}>
       <div className="row-between">
         <h2>
-          <span className="conta-bolinha" style={{ background: fatura.conta.cor }} aria-hidden="true" /> Fatura{' '}
-          {fatura.conta.nome}
+          <span className="conta-bolinha" style={{ background: fatura.conta.cor }} aria-hidden="true" /> {rotulo}
         </h2>
-        <span className="muted small">
-          {quandoFecha} · {formatarCurto(fatura.fechaEm)}
-        </span>
+        <span className="muted small">{quandoFecha}</span>
       </div>
 
       <div className="termometro-num">
-        <strong className={estourou ? 'negativo' : 'positivo'}>{formatBRL(Math.abs(espaco))}</strong>
-        <span className="muted small">{estourou ? 'acima do teto' : 'ainda cabem nesta fatura'}</span>
+        <strong>{formatBRL(fatura.atual)}</strong>
+        <span className="muted small">no Nubank agora</span>
       </div>
 
-      <div className="cat-track" aria-hidden="true">
-        <span className={`cat-fill ${estourou ? 'fill-danger' : 'fill-ok'}`} style={{ width: `${largura}%` }} />
-      </div>
-
-      <div className="row-between small muted">
-        <span>{formatBRLCurto(fatura.aberta)} lançados</span>
-        <span>teto {formatBRLCurto(teto)}</span>
-      </div>
-
-      <p className="termometro-msg">
-        {estourou ? 'Acima do teto desta fatura.' : `${formatBRL(Math.max(0, porDia))}/dia até fechar`}
-      </p>
+      {teto > 0 && (
+        <>
+          <div className="cat-track" aria-hidden="true">
+            <span className={`cat-fill ${estourou ? 'fill-danger' : 'fill-ok'}`} style={{ width: `${largura}%` }} />
+          </div>
+          <div className="row-between small muted">
+            <span>{estourou ? `passou ${formatBRLCurto(Math.abs(espaco))}` : `cabem ${formatBRLCurto(espaco)}`}</span>
+            <span>teto {formatBRLCurto(teto)}</span>
+          </div>
+        </>
+      )}
 
       <div className="termometro-rodape muted small">
-        <span>vence {formatarCurto(fatura.venceEmAberta)}</span>
-        {fatura.futuras > 0 && <span>{formatBRL(fatura.futuras)} em parcelas nas próximas</span>}
-        {!fatura.usandoValorInformado && (
-          <Link to="/ajustes/contas" className="cta">
-            informar valor real
-          </Link>
-        )}
+        <span>vence {formatarCurto(fatura.fechada > 0 ? fatura.venceEmFechada : fatura.venceEmAberta)}</span>
+        <Link to="/ajustes/contas" className="cta">
+          ajustar valor
+        </Link>
       </div>
     </section>
   )

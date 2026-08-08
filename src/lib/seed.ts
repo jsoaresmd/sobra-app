@@ -269,6 +269,15 @@ async function alinharCategoriasNubank() {
   })
 }
 
+async function limparFaturaPluggyInflada() {
+  await db.contas
+    .filter((c) => c.tipo === 'credito' && c.faturaInformada !== undefined)
+    .modify((c) => {
+      delete c.faturaInformada
+      delete c.faturaInformadaEm
+    })
+}
+
 /** Cria os dados iniciais na primeira abertura e limpa duplicatas de seeds antigos. */
 export function garantirDadosIniciais() {
   if (!inicializacao) {
@@ -277,6 +286,7 @@ export function garantirDadosIniciais() {
       await limparDuplicatas()
       await semearEnvelopesSeVazio()
       await alinharCategoriasNubank()
+      await limparFaturaPluggyInflada()
     })().catch((erro) => {
       inicializacao = null
       throw erro

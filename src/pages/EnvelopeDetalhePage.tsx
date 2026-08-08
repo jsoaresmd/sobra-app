@@ -9,16 +9,22 @@ import { ROTULO_TIPO_ENVELOPE } from '../lib/envelopes'
 export function EnvelopeDetalhePage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { envelopes, lancamentos, resumo, contas, categorias } = useDados()
+  const { envelopes, lancamentos, resumo, contas, categorias, hoje } = useDados()
 
   const envelope = envelopes.find((e) => e.id === id && !e.arquivado)
 
   const gastos = useMemo(() => {
     if (!resumo || !envelope) return []
     return lancamentos
-      .filter((l) => l.envelopeId === envelope.id && l.tipo === 'despesa' && dentroDo(resumo.ciclo, l.data))
+      .filter(
+        (l) =>
+          l.envelopeId === envelope.id &&
+          l.tipo === 'despesa' &&
+          l.data <= hoje &&
+          dentroDo(resumo.ciclo, l.data),
+      )
       .sort((a, b) => (b.data === a.data ? b.criadoEm.localeCompare(a.criadoEm) : b.data.localeCompare(a.data)))
-  }, [lancamentos, resumo, envelope])
+  }, [lancamentos, resumo, envelope, hoje])
 
   const porDia = useMemo(() => {
     const mapa = new Map<string, typeof gastos>()
