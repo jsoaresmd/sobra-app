@@ -70,8 +70,13 @@ export function HojePage() {
     setSyncMsg(null)
     setSyncErro(null)
     try {
-      const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias)
-      setSyncMsg(`${r.novas} novo${r.novas === 1 ? '' : 's'}`)
+      const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias, {
+        forcarCompleto: true,
+      })
+      const partes = [`${r.novas} novo${r.novas === 1 ? '' : 's'}`]
+      if (r.corrigidas) partes.push(`${r.corrigidas} corrigido${r.corrigidas === 1 ? '' : 's'}`)
+      if (r.semEtiqueta) partes.push(`${r.semEtiqueta} sem área`)
+      setSyncMsg(partes.join(' · '))
     } catch (e) {
       setSyncErro(e instanceof Error ? e.message : 'Falha ao sincronizar.')
     } finally {

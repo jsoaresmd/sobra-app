@@ -1,6 +1,7 @@
 import { db } from './db'
 import { sincronizarPluggy } from './pluggyClient'
 import { aplicarSyncPluggy } from './pluggySync'
+import { fromISO, toISO } from './dates'
 import type { Categoria, Config, Envelope, RegraImportacao } from './types'
 
 type OpcoesSync = {
@@ -25,16 +26,19 @@ export async function sincronizarBancosAbertos(
   const temContaPluggy = (await db.contas.toArray()).some((c) => c.pluggyAccountId)
   const precisaCompleto = opcoes.forcarCompleto || !temContaPluggy || !config.pluggyUltimaSync
 
-  const desde = precisaCompleto ? undefined : config.pluggyUltimaSync?.slice(0, 10)
-  const dateFrom = desde
-    ? new Date(new Date(desde).getTime() - 1000 * 60 * 60 * 24 * 3).toISOString().slice(0, 10)
-    : undefined
+  // Cartão no Open Finance atrasa; sempre olha pelo menos 14 dias para trás.
+  let dateFrom: string | undefined
+  if (precisaCompleto) {
+    dateFrom = undefined
+  } else {
+    const desde = fromISO(config.pluggyUltimaSync!.slice(0, 10))
+    desde.setDate(desde.getDate() - 14)
+    dateFrom = toISO(desde)
+  }
 
   const pacote = await sincronizarPluggy(itemIds, dateFrom)
   if (!pacote.contas.length) {
-    throw new Error(
-      'Item ID sem contas na Pluggy. Confira se é o ID certo.',
-    )
+    throw new Error('Item ID sem contas na Pluggy. Confira se é o ID certo.')
   }
 
   return aplicarSyncPluggy(pacote, envelopes, regras, hoje, categorias)

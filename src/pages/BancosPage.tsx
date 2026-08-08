@@ -73,9 +73,10 @@ export function BancosPage() {
     setBusy('sync')
     try {
       if (!config) throw new Error('Config ainda não carregou.')
-      const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias)
-      const saldos = r.resumoContas.map((c) => `${c.nome} ${formatBRL(c.valor)}`).join(' · ')
-      setOk(`${saldos || `${r.contas} contas`} · ${r.novas} novo${r.novas === 1 ? '' : 's'}`)
+      const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias, {
+        forcarCompleto: true,
+      })
+      setOk(`${r.novas} novo${r.novas === 1 ? '' : 's'}${r.corrigidas ? ` · ${r.corrigidas} corrigido${r.corrigidas === 1 ? '' : 's'}` : ''}`)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Falha na sincronização.')
     } finally {

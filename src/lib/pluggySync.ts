@@ -26,7 +26,7 @@ function corConta(tipo: TipoConta) {
   return '#2f9e6e'
 }
 
-function txComoNubank(tx: TxPluggySync): TxNubank {
+function txComoNubank(tx: TxPluggySync, contaTipo: TipoConta): TxNubank {
   const titulo = tx.descriptionRaw || tx.description || 'Lançamento'
   const { parcela, totalParcelas } = extrairParcela(titulo)
   const metaParcela = tx.creditCardMetadata?.installmentNumber ?? undefined
@@ -34,17 +34,29 @@ function txComoNubank(tx: TxPluggySync): TxNubank {
   const estabelecimento = nomeSemParcela(titulo)
   const valor = Math.abs(tx.amount)
 
-  // Pluggy: DEBIT = dinheiro saindo, CREDIT = entrando.
-  // Fallback pelo sinal se o type não vier.
-  const tipo: 'despesa' | 'receita' =
-    tx.type === 'CREDIT' || (tx.type !== 'DEBIT' && tx.amount < 0) ? 'receita' : 'despesa'
+  // No cartão, a data da fatura pode ser futura; a compra é purchaseDate.
+  const dataFatura = tx.date.slice(0, 10)
+  const dataCompra = tx.creditCardMetadata?.purchaseDate?.slice(0, 10)
+  const data =
+    contaTipo === 'credito' && dataCompra ? dataCompra : dataFatura
+
+  let tipo: 'despesa' | 'receita'
+  if (contaTipo === 'credito') {
+    // CREDIT no cartão = pagamento/estorno; DEBIT = compra.
+    tipo = tx.type === 'CREDIT' || /pagamento da fatura|pagamento recebido/i.test(titulo) ? 'receita' : 'despesa'
+  } else {
+    tipo = tx.type === 'CREDIT' || (tx.type !== 'DEBIT' && tx.amount < 0) ? 'receita' : 'despesa'
+  }
 
   const parcelaFinal = metaParcela ?? parcela
   const totalFinal = metaTotal ?? totalParcelas
+  const ehPagamento = contaTipo === 'credito'
+    ? /pagamento da fatura|pagamento recebido|^pagamento\b/i.test(titulo)
+    : /pagamento/i.test(titulo)
 
   return {
     fingerprint: `pluggy:${tx.id}`,
-    data: tx.date.slice(0, 10),
+    data,
     descricao: parcelaFinal && totalFinal ? `${estabelecimento} (${parcelaFinal}/${totalFinal})` : estabelecimento,
     estabelecimento,
     chave: chaveEstabelecimento(estabelecimento),
@@ -52,7 +64,7 @@ function txComoNubank(tx: TxPluggySync): TxNubank {
     tipo,
     parcela: parcelaFinal,
     totalParcelas: totalFinal,
-    origem: /pagamento/i.test(titulo) ? 'pagamento' : /^IOF\b/i.test(titulo) ? 'iof' : 'compra',
+    origem: ehPagamento ? 'pagamento' : /^IOF\b/i.test(titulo) ? 'iof' : 'compra',
   }
 }
 
@@ -134,35 +146,50 @@ export async function aplicarSyncPluggy(
   categorias: Categoria[] = [],
 ) {
   const mapaConta = new Map<string, string>() // pluggyAccountId → localId
+  const mapaTipo = new Map<string, TipoConta>()
 
   for (let i = 0; i < pacote.contas.length; i++) {
     const localId = await upsertConta(pacote.contas[i], i, hoje)
     mapaConta.set(pacote.contas[i].id, localId)
+    mapaTipo.set(pacote.contas[i].id, tipoContaPluggy(pacote.contas[i]))
   }
 
   const fps = pacote.transacoes.map((t) => `pluggy:${t.id}`)
-  const jaTem = new Set(
-    (await db.lancamentos.where('importFingerprint').anyOf(fps).toArray())
-      .map((l) => l.importFingerprint)
-      .filter(Boolean),
-  )
+  const existentes = fps.length
+    ? await db.lancamentos.where('importFingerprint').anyOf(fps).toArray()
+    : []
+  const porFp = new Map(existentes.map((l) => [l.importFingerprint!, l]))
 
   let novas = 0
   let etiquetadas = 0
   let semEtiqueta = 0
+  let corrigidas = 0
 
   for (const tx of pacote.transacoes) {
     const fingerprint = `pluggy:${tx.id}`
-    if (jaTem.has(fingerprint)) continue
-
-    const normalizada = txComoNubank(tx)
+    const contaTipo = mapaTipo.get(tx.accountId) ?? 'debito'
+    const normalizada = txComoNubank(tx, contaTipo)
     if (normalizada.origem === 'pagamento') continue
+
+    const ja = porFp.get(fingerprint)
+    if (ja) {
+      // Corrige data antiga (fatura futura) para a data real da compra.
+      if (ja.data !== normalizada.data || ja.tipo !== normalizada.tipo) {
+        await db.lancamentos.update(ja.id, {
+          data: normalizada.data,
+          tipo: normalizada.tipo,
+          valor: normalizada.valor,
+          descricao: normalizada.descricao,
+        })
+        corrigidas += 1
+      }
+      continue
+    }
 
     const sugestao = sugerirEnvelope(normalizada, envelopes, regras, categorias, tx.category)
     const contaId = mapaConta.get(tx.accountId) ?? null
     const { hora } = partirDataHora(tx.date)
 
-    // Preferir categoria da Pluggy se mapearmos pelo nome depois — por enquanto envelopes.
     const lancamento: Lancamento = {
       id: novoId(),
       tipo: normalizada.tipo,
@@ -222,6 +249,7 @@ export async function aplicarSyncPluggy(
     novas,
     etiquetadas,
     semEtiqueta,
+    corrigidas,
     contas: pacote.contas.length,
     transacoesRecebidas: pacote.transacoes.length,
     resumoContas,

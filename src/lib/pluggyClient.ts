@@ -26,9 +26,11 @@ export type TxPluggySync = {
   date: string
   category: string | null
   type: string
+  status?: string
   creditCardMetadata?: {
     installmentNumber?: number | null
     totalInstallments?: number | null
+    purchaseDate?: string | null
   } | null
 }
 
