@@ -4,7 +4,7 @@ import { db } from '../lib/db'
 import { garantirDadosIniciais } from '../lib/seed'
 import { cicloAtual, cicloDeslocado, hojeISO } from '../lib/dates'
 import { calcularCategorias, calcularResumo, type Resumo, type ResumoCategoria } from '../lib/budget'
-import { calcularFatura, calcularTetoFatura, montarTermometro, type Fatura, type TermometroFatura } from '../lib/fatura'
+import { calcularFatura, calcularTetoFatura, type Fatura } from '../lib/fatura'
 import { calcularCaixa, type Caixa } from '../lib/caixa'
 import { alocarCiclo, processarDebitosPendentes } from '../lib/envelopes'
 import type { Categoria, Conta, Config, Envelope, Lancamento, Recorrente } from '../lib/types'
@@ -21,7 +21,6 @@ type DadosContextValue = {
   resumo: Resumo | undefined
   categoriasResumo: ResumoCategoria[]
   faturas: Fatura[]
-  termometros: TermometroFatura[]
   tetoFatura: number
   caixa: Caixa | undefined
   offsetCiclo: number
@@ -96,11 +95,6 @@ export function DadosProvider({ children }: { children: ReactNode }) {
     return calcularTetoFatura(config, contas, recorrentes)
   }, [config, contas, recorrentes])
 
-  const termometros = useMemo(
-    () => faturas.map((f) => montarTermometro(f, tetoFatura)),
-    [faturas, tetoFatura],
-  )
-
   const caixa = useMemo(() => {
     if (!config) return undefined
     return calcularCaixa(config, contas, faturas, recorrentes, lancamentos, ciclo, hoje)
@@ -118,7 +112,6 @@ export function DadosProvider({ children }: { children: ReactNode }) {
     resumo,
     categoriasResumo,
     faturas,
-    termometros,
     tetoFatura,
     caixa,
     offsetCiclo,

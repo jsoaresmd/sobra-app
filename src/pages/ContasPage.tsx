@@ -111,9 +111,9 @@ export function ContasPage() {
                     </label>
                     {fatura && (
                       <p className="muted small">
-                        App calcula <strong>{formatBRL(fatura.atual)}</strong>
-                        {fatura.fechada > 0
-                          ? ` (fechada, vence ${formatarCurto(fatura.venceEmFechada)})`
+                        App mostra <strong>{formatBRL(fatura.atual)}</strong>
+                        {fatura.fechada
+                          ? ` (fechada, vence ${formatarCurto(fatura.vence)})`
                           : ` (aberta, fecha ${formatarCurto(fatura.fechaEm)})`}
                         {fatura.futuras > 0 && ` · ${formatBRL(fatura.futuras)} em faturas seguintes`}
                       </p>

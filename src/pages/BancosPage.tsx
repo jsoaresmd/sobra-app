@@ -75,6 +75,7 @@ export function BancosPage() {
       if (!config) throw new Error('Config ainda não carregou.')
       const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias, {
         forcarCompleto: true,
+        onProgresso: setOk,
       })
       setOk(`${r.novas} novo${r.novas === 1 ? '' : 's'}${r.corrigidas ? ` · ${r.corrigidas} corrigido${r.corrigidas === 1 ? '' : 's'}` : ''}`)
     } catch (e) {
@@ -179,6 +180,9 @@ export function BancosPage() {
       <section className="panel stack">
         <Link to="/ajustes/etiquetar" className="cta">
           Etiquetar gastos sem envelope
+        </Link>
+        <Link to="/ajustes/diagnostico" className="cta">
+          Ver o que o banco envia
         </Link>
       </section>
     </div>

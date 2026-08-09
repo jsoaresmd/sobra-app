@@ -1,24 +1,27 @@
 import { addMonths, getDaysInMonth } from 'date-fns'
 import { fromISO, toISO } from './dates'
-import type { Config, Conta, Lancamento, Recorrente } from './types'
+import type { Config, Conta, FaturaBanco, Lancamento, Recorrente } from './types'
 
 export type Fatura = {
   conta: Conta
-  /** Fatura que ainda está acumulando compras. */
-  aberta: number
-  fechaEm: string
-  venceEmAberta: string
-  diasParaFechar: number
-  /** Fatura já fechada e ainda não vencida. */
-  fechada: number
-  venceEmFechada: string
-  /** Parcelas com data futura (ainda não “gastas”). */
-  futuras: number
-  /** Valor da fatura que importa agora (fechada pendente, senão a aberta). */
+  /** Fatura que se paga agora, já descontando o que foi pago adiantado. */
   atual: number
+  /** Total da fatura antes dos pagamentos. */
+  bruto: number
+  pago: number
+  vence: string
+  /** True quando essa fatura já fechou e não recebe mais compras. */
+  fechada: boolean
+  /** Compras que já entraram na fatura seguinte. */
+  proxima: number
+  /** Parcelas que só caem nas faturas depois dessa. */
+  futuras: number
+  fechaEm: string
+  diasParaFechar: number
+  limiteDisponivel: number | null
   limiteUsado: number | null
-  /** True quando o valor veio do que foi conferido no app do banco. */
-  usandoValorInformado: boolean
+  /** De onde veio o valor: o banco, a conta do app, ou o que foi digitado. */
+  fonte: 'banco' | 'app' | 'informado'
 }
 
 function comDia(base: Date, dia: number) {
@@ -73,71 +76,94 @@ function parcelasAVencer(doCartao: Lancamento[], fimAberta: string) {
   return restantes + lancadas
 }
 
-export function calcularFatura(conta: Conta, lancamentos: Lancamento[], hojeISO: string): Fatura | null {
-  if (conta.tipo !== 'credito' || !conta.diaFechamento || !conta.diaVencimento) return null
+/** A fatura que o banco ainda espera receber: a primeira que vence de hoje em diante. */
+function faturaAPagar(faturas: FaturaBanco[] | undefined, hojeISO: string) {
+  if (!faturas?.length) return null
+  const abertas = faturas.filter((f) => f.vence >= hojeISO)
+  return abertas.length > 0 ? abertas[0] : null
+}
 
+export function calcularFatura(conta: Conta, lancamentos: Lancamento[], hojeISO: string): Fatura | null {
+  if (conta.tipo !== 'credito') return null
+
+  const diaFechamento = conta.diaFechamento ?? 4
+  const diaVencimento = conta.diaVencimento ?? 11
   const hoje = fromISO(hojeISO)
-  const ultimoFechamento = ultimaOcorrencia(hoje, conta.diaFechamento)
-  const proximoFechamento = proximaOcorrencia(ultimoFechamento, conta.diaFechamento)
-  const fechamentoAnterior = ultimaOcorrencia(new Date(ultimoFechamento.getTime() - 86400000), conta.diaFechamento)
+  const ultimoFechamento = ultimaOcorrencia(hoje, diaFechamento)
+  const proximoFechamento = proximaOcorrencia(ultimoFechamento, diaFechamento)
+  const fechamentoAnterior = ultimaOcorrencia(new Date(ultimoFechamento.getTime() - 86400000), diaFechamento)
 
   const doCartao = lancamentos.filter((l) => l.contaId === conta.id && l.tipo === 'despesa')
-
   const somaEntre = (deExclusivo: string, ateInclusivo: string) =>
     doCartao.filter((l) => l.data > deExclusivo && l.data <= ateInclusivo).reduce((total, l) => total + l.valor, 0)
 
   const inicioFechada = toISO(fechamentoAnterior)
   const inicioAberta = toISO(ultimoFechamento)
   const fimAberta = toISO(proximoFechamento)
+  const ateHoje = hojeISO < fimAberta ? hojeISO : fimAberta
 
-  const fechada = somaEntre(inicioFechada, inicioAberta)
-  const aberta = somaEntre(inicioAberta, hojeISO < fimAberta ? hojeISO : fimAberta)
+  const doBanco = faturaAPagar(conta.faturasBanco, hojeISO)
   const futuras = parcelasAVencer(doCartao, fimAberta)
 
-  const venceEmFechada = proximaOcorrencia(ultimoFechamento, conta.diaVencimento)
-  const venceEmAberta = proximaOcorrencia(proximoFechamento, conta.diaVencimento)
-  const fechadaPendente = venceEmFechada >= hoje ? fechada : 0
+  let bruto: number
+  let pago: number
+  let vence: string
+  let fechada: boolean
+  let proxima: number
+  let fonte: Fatura['fonte']
 
-  /** O que importa agora: a fatura fechada a pagar, ou a que ainda está aberta. */
-  const calculadaAtual = fechadaPendente > 0 ? fechadaPendente : aberta
+  if (doBanco) {
+    bruto = doBanco.total + doBanco.encargos
+    pago = doBanco.pago
+    vence = doBanco.vence
+    fechada = Boolean(doBanco.fechouEm && doBanco.fechouEm <= hojeISO)
+    // Depois que a fatura fecha, o que se compra já é da fatura seguinte.
+    proxima = fechada ? somaEntre(doBanco.fechouEm!, ateHoje) : 0
+    fonte = 'banco'
+  } else {
+    const fechadaCalculada = somaEntre(inicioFechada, inicioAberta)
+    const venceFechada = toISO(proximaOcorrencia(ultimoFechamento, diaVencimento))
+    const aindaPagaFechada = venceFechada >= hojeISO && fechadaCalculada > 0
 
-  // Âncora manual: o valor conferido no app do banco vale mais que a soma dos
-  // lançamentos, e só as compras da mesma fatura entram por cima.
-  const inicioJanelaAtual = fechadaPendente > 0 ? inicioFechada : inicioAberta
-  const fimJanelaAtual = fechadaPendente > 0 ? inicioAberta : hojeISO < fimAberta ? hojeISO : fimAberta
+    bruto = aindaPagaFechada ? fechadaCalculada : somaEntre(inicioAberta, ateHoje)
+    pago = 0
+    vence = aindaPagaFechada ? venceFechada : toISO(proximaOcorrencia(proximoFechamento, diaVencimento))
+    fechada = aindaPagaFechada
+    proxima = aindaPagaFechada ? somaEntre(inicioAberta, ateHoje) : 0
+    fonte = 'app'
+  }
+
+  // Valor conferido no app do banco vence qualquer cálculo, com as compras
+  // lançadas depois somadas por cima.
   const informadoVale =
     conta.faturaInformada !== undefined &&
     conta.faturaInformadaEm !== undefined &&
-    conta.faturaInformadaEm >= inicioJanelaAtual &&
+    conta.faturaInformadaEm >= inicioFechada &&
     conta.faturaInformadaEm <= hojeISO
 
-  const atual = informadoVale
-    ? conta.faturaInformada! + somaEntre(conta.faturaInformadaEm!, fimJanelaAtual)
-    : calculadaAtual
+  if (informadoVale) {
+    bruto = conta.faturaInformada! + somaEntre(conta.faturaInformadaEm!, fechada ? inicioAberta : ateHoje)
+    pago = 0
+    fonte = 'informado'
+  }
+
+  const atual = Math.max(0, bruto - pago)
 
   return {
     conta,
-    aberta,
-    fechaEm: fimAberta,
-    venceEmAberta: toISO(venceEmAberta),
-    diasParaFechar: diasAte(fimAberta, hojeISO),
-    fechada: fechadaPendente,
-    venceEmFechada: toISO(venceEmFechada),
-    futuras,
     atual,
+    bruto,
+    pago,
+    vence,
+    fechada,
+    proxima,
+    futuras,
+    fechaEm: fimAberta,
+    diasParaFechar: diasAte(fimAberta, hojeISO),
+    limiteDisponivel: conta.limiteDisponivel ?? null,
     limiteUsado: conta.limite ? atual / conta.limite : null,
-    usandoValorInformado: Boolean(informadoVale),
+    fonte,
   }
-}
-
-export type TermometroFatura = {
-  fatura: Fatura
-  teto: number
-  /** Quanto ainda cabe antes de estourar o teto (pode ser negativo). */
-  espaco: number
-  porDia: number
-  percentual: number
-  estourou: boolean
 }
 
 /**
@@ -153,19 +179,4 @@ export function calcularTetoFatura(config: Config, contas: Conta[], recorrentes:
     .reduce((total, r) => total + r.valor, 0)
 
   return Math.max(0, config.rendaMensal - config.metaPoupanca - foraDoCartao)
-}
-
-export function montarTermometro(fatura: Fatura, teto: number): TermometroFatura {
-  const valor = fatura.atual
-  const espaco = teto - valor
-  const dias = Math.max(1, fatura.diasParaFechar)
-
-  return {
-    fatura,
-    teto,
-    espaco,
-    porDia: espaco / dias,
-    percentual: teto > 0 ? valor / teto : 0,
-    estourou: espaco < 0,
-  }
 }

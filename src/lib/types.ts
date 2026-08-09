@@ -28,6 +28,18 @@ export type Config = {
   onboardingFeito: boolean
 }
 
+/** Fatura como o banco informa (produto Bills do Open Finance). */
+export type FaturaBanco = {
+  id: string
+  /** YYYY-MM-DD */
+  vence: string
+  fechouEm: string | null
+  total: number
+  encargos: number
+  /** Quanto já foi pago desta fatura (dá para pagar antes de fechar). */
+  pago: number
+}
+
 export type Conta = {
   id: string
   nome: string
@@ -47,6 +59,10 @@ export type Conta = {
    */
   faturaInformada?: number
   faturaInformadaEm?: string
+  /** Faturas que o próprio banco informou, da mais antiga para a mais nova. */
+  faturasBanco?: FaturaBanco[]
+  /** Limite ainda livre no cartão, direto do banco. */
+  limiteDisponivel?: number
   /** Id da conta na Pluggy (Open Finance). */
   pluggyAccountId?: string
   pluggyItemId?: string
@@ -156,6 +172,10 @@ export type Lancamento = {
   parcela?: number
   totalParcelas?: number
   origem: 'manual' | 'recorrente' | 'importado'
+  /** Cartão: mês da fatura que vai cobrar este gasto (YYYY-MM), informado pelo banco. */
+  faturaMes?: string
+  /** Compra ainda não faturada (aparece no app do banco, mas não na fatura fechada). */
+  pendente?: boolean
   recorrenteId?: string
   /** Fingerprint do extrato Nubank, para não importar duas vezes. */
   importFingerprint?: string

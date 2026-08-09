@@ -3,15 +3,17 @@ import { formatBRL } from '../lib/money'
 import { formatarCurto } from '../lib/dates'
 import type { Fatura } from '../lib/fatura'
 
+const FONTE: Record<Fatura['fonte'], string> = {
+  banco: 'valor informado pelo banco',
+  app: 'somado dos lançamentos',
+  informado: 'valor que você conferiu',
+}
+
 /**
- * Só três números, sem repetir dívida: o que se paga agora, o que já entrou na
+ * Três números, sem repetir dívida: o que se paga agora, o que já entrou na
  * próxima fatura e o que está parcelado para as seguintes.
  */
 export function CartaoResumo({ fatura }: { fatura: Fatura }) {
-  const fechada = fatura.fechada > 0
-  const proxima = fechada ? fatura.aberta : 0
-  const vence = fechada ? fatura.venceEmFechada : fatura.venceEmAberta
-
   return (
     <section className="panel stack resumo-panel">
       <div className="row-between">
@@ -19,19 +21,25 @@ export function CartaoResumo({ fatura }: { fatura: Fatura }) {
           <span className="conta-bolinha" style={{ background: fatura.conta.cor }} aria-hidden="true" />{' '}
           {fatura.conta.nome}
         </h2>
-        <span className="muted small">vence {formatarCurto(vence)}</span>
+        <span className="muted small">vence {formatarCurto(fatura.vence)}</span>
       </div>
 
       <div className="termometro-num">
         <strong>{formatBRL(fatura.atual)}</strong>
-        <span className="muted small">{fechada ? 'fatura fechada, a pagar' : 'fatura aberta'}</span>
+        <span className="muted small">{fatura.fechada ? 'fatura fechada, a pagar' : 'fatura aberta'}</span>
       </div>
 
-      {(proxima > 0 || fatura.futuras > 0) && <hr />}
-      {proxima > 0 && (
+      <hr />
+      {fatura.pago > 0 && (
+        <p className="linha-resumo">
+          <span>Já pago desta fatura</span>
+          <strong>{formatBRL(fatura.pago)}</strong>
+        </p>
+      )}
+      {fatura.proxima > 0 && (
         <p className="linha-resumo">
           <span>Já na próxima fatura</span>
-          <strong>{formatBRL(proxima)}</strong>
+          <strong>{formatBRL(fatura.proxima)}</strong>
         </p>
       )}
       {fatura.futuras > 0 && (
@@ -40,9 +48,15 @@ export function CartaoResumo({ fatura }: { fatura: Fatura }) {
           <strong>{formatBRL(fatura.futuras)}</strong>
         </p>
       )}
+      {fatura.limiteDisponivel !== null && (
+        <p className="linha-resumo">
+          <span>Limite disponível</span>
+          <strong>{formatBRL(fatura.limiteDisponivel)}</strong>
+        </p>
+      )}
 
       <div className="termometro-rodape muted small">
-        <span>{fatura.usandoValorInformado ? 'valor conferido no banco' : 'somado dos lançamentos'}</span>
+        <span>{FONTE[fatura.fonte]}</span>
         <Link to="/ajustes/contas" className="cta">
           ajustar valor
         </Link>

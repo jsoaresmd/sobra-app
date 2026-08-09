@@ -12,8 +12,22 @@ export type ContaPluggySync = {
   creditData?: {
     balanceCloseDate?: string | null
     balanceDueDate?: string | null
+    availableCreditLimit?: number | null
     creditLimit?: number | null
+    minimumPayment?: number | null
   } | null
+}
+
+/** Fatura de cartão fechada/aberta como o banco informa (produto Bills). */
+export type FaturaPluggy = {
+  id: string
+  accountId: string
+  dueDate: string
+  billClosingDate: string | null
+  totalAmount: number
+  minimumPaymentAmount?: number | null
+  financeCharges?: Array<{ type: string; amount: number }> | null
+  payments?: Array<{ valueType: string; paymentDate: string; paymentMode: string | null; amount: number }> | null
 }
 
 export type TxPluggySync = {
@@ -30,7 +44,11 @@ export type TxPluggySync = {
   creditCardMetadata?: {
     installmentNumber?: number | null
     totalInstallments?: number | null
+    totalAmount?: number | null
     purchaseDate?: string | null
+    billId?: string | null
+    /** Mês da fatura que vai cobrar (YYYY-MM), inclusive para compras pendentes. */
+    billMonth?: string | null
   } | null
 }
 
@@ -39,6 +57,17 @@ export type SyncPluggyResultado = {
   dateFrom: string
   contas: ContaPluggySync[]
   transacoes: TxPluggySync[]
+  faturas?: FaturaPluggy[]
+}
+
+export type ItemStatus = {
+  itemId: string
+  status: string
+  executionStatus: string
+  lastUpdatedAt: string | null
+  conector: string | null
+  erro: string | null
+  aguardando: string | null
 }
 
 function apiBase() {
@@ -85,6 +114,30 @@ export async function sincronizarPluggy(itemIds: string[], dateFrom?: string) {
   return chamar<SyncPluggyResultado>('/pluggy-sync', {
     method: 'POST',
     body: JSON.stringify({ itemIds, dateFrom }),
+  })
+}
+
+/** Pede à Pluggy que busque dados novos no banco (sem isso, a leitura vem da última coleta). */
+export async function pedirAtualizacaoPluggy(itemIds: string[]) {
+  const data = await chamar<{ itens: ItemStatus[] }>('/pluggy-item', {
+    method: 'POST',
+    body: JSON.stringify({ itemIds, acao: 'atualizar' }),
+  })
+  return data.itens
+}
+
+export async function statusItensPluggy(itemIds: string[]) {
+  const data = await chamar<{ itens: ItemStatus[] }>('/pluggy-item', {
+    method: 'POST',
+    body: JSON.stringify({ itemIds, acao: 'status' }),
+  })
+  return data.itens
+}
+
+export async function diagnosticoPluggy(itemIds: string[], dias = 45) {
+  return chamar<Record<string, unknown>>('/pluggy-diagnostico', {
+    method: 'POST',
+    body: JSON.stringify({ itemIds, dias }),
   })
 }
 

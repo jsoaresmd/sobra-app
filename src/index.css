@@ -1186,6 +1186,17 @@ a,
   padding-bottom: 0;
 }
 
+.diagnostico {
+  max-height: 60vh;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
 /* ---------- Resumo do mês ---------- */
 .linha-resumo {
   display: flex;

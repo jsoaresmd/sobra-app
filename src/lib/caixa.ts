@@ -62,7 +62,7 @@ export function calcularCaixa(
       id: `${fatura.conta.id}-atual`,
       descricao: `Fatura ${fatura.conta.nome}`,
       valor: fatura.atual,
-      data: fatura.fechada > 0 ? fatura.venceEmFechada : fatura.venceEmAberta,
+      data: fatura.vence,
       tipo: 'fatura',
     })
   }

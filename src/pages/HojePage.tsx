@@ -72,6 +72,7 @@ export function HojePage() {
     try {
       const r = await sincronizarBancosAbertos(config, envelopes, regras, hoje, categorias, {
         forcarCompleto: true,
+        onProgresso: setSyncMsg,
       })
       const partes = [`${r.novas} novo${r.novas === 1 ? '' : 's'}`]
       if (r.corrigidas) partes.push(`${r.corrigidas} corrigido${r.corrigidas === 1 ? '' : 's'}`)

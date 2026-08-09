@@ -4,9 +4,15 @@ import { chaveEstabelecimento, extrairParcela, nomeSemParcela } from './merchant
 import { sugerirEnvelope } from './regrasImportacao'
 import { salvarRegraImportacao } from './regrasImportacao'
 import { partirDataHora } from './dates'
-import type { ContaPluggySync, SyncPluggyResultado, TxPluggySync } from './pluggyClient'
-import type { Conta, Envelope, Lancamento, RegraImportacao, TipoConta, Categoria } from './types'
+import type { ContaPluggySync, FaturaPluggy, SyncPluggyResultado, TxPluggySync } from './pluggyClient'
+import type { Conta, Envelope, FaturaBanco, Lancamento, RegraImportacao, TipoConta, Categoria } from './types'
 import type { TxNubank } from './nubankShared'
+
+type TxImportada = TxNubank & {
+  /** Mês da fatura que cobra o gasto (YYYY-MM), quando o banco informa. */
+  faturaMes?: string
+  pendente?: boolean
+}
 
 function tipoContaPluggy(conta: ContaPluggySync): TipoConta {
   if (conta.type === 'CREDIT' || conta.subtype === 'CREDIT_CARD') return 'credito'
@@ -26,7 +32,7 @@ function corConta(tipo: TipoConta) {
   return '#2f9e6e'
 }
 
-function txComoNubank(tx: TxPluggySync, contaTipo: TipoConta): TxNubank {
+function txComoNubank(tx: TxPluggySync, contaTipo: TipoConta): TxImportada {
   const titulo = tx.descriptionRaw || tx.description || 'Lançamento'
   const { parcela, totalParcelas } = extrairParcela(titulo)
   const metaParcela = tx.creditCardMetadata?.installmentNumber ?? undefined
@@ -74,10 +80,26 @@ function txComoNubank(tx: TxPluggySync, contaTipo: TipoConta): TxNubank {
     parcela: parcelaFinal,
     totalParcelas: totalFinal,
     origem: ehPagamento ? 'pagamento' : /^IOF\b/i.test(titulo) ? 'iof' : 'compra',
+    faturaMes: tx.creditCardMetadata?.billMonth ?? undefined,
+    pendente: tx.status === 'PENDING' ? true : undefined,
   }
 }
 
-async function upsertConta(contaP: ContaPluggySync, ordem: number, hoje: string) {
+function faturasDaConta(faturas: FaturaPluggy[], accountId: string): FaturaBanco[] {
+  return faturas
+    .filter((b) => b.accountId === accountId)
+    .map((b) => ({
+      id: b.id,
+      vence: b.dueDate.slice(0, 10),
+      fechouEm: b.billClosingDate ? b.billClosingDate.slice(0, 10) : null,
+      total: b.totalAmount,
+      encargos: (b.financeCharges ?? []).reduce((soma, c) => soma + (c.amount ?? 0), 0),
+      pago: (b.payments ?? []).reduce((soma, p) => soma + (p.amount ?? 0), 0),
+    }))
+    .sort((a, b) => a.vence.localeCompare(b.vence))
+}
+
+async function upsertConta(contaP: ContaPluggySync, ordem: number, hoje: string, faturas: FaturaBanco[]) {
   const tipo = tipoContaPluggy(contaP)
   const existentes = await db.contas.toArray()
   let local =
@@ -103,8 +125,10 @@ async function upsertConta(contaP: ContaPluggySync, ordem: number, hoje: string)
     mudancas.diaFechamento = diaDeISO(contaP.creditData?.balanceCloseDate) ?? local?.diaFechamento ?? 4
     mudancas.diaVencimento = diaDeISO(contaP.creditData?.balanceDueDate) ?? local?.diaVencimento ?? 11
     mudancas.limite = contaP.creditData?.creditLimit ?? local?.limite
-    // Não usa balance da Pluggy como fatura: costuma ser o total em aberto (várias faturas/parcelas),
-    // não o valor da fatura atual do Nubank.
+    mudancas.limiteDisponivel = contaP.creditData?.availableCreditLimit ?? local?.limiteDisponivel
+    if (faturas.length > 0) mudancas.faturasBanco = faturas
+    // Não usa balance da Pluggy como fatura: no Open Finance ele é o limite usado
+    // (fatura aberta + parcelas futuras), não a fatura que se paga agora.
   } else {
     mudancas.saldo = contaP.balance
     mudancas.saldoEm = hoje
@@ -127,6 +151,8 @@ async function upsertConta(contaP: ContaPluggySync, ordem: number, hoje: string)
     diaFechamento: mudancas.diaFechamento,
     diaVencimento: mudancas.diaVencimento,
     limite: mudancas.limite,
+    limiteDisponivel: mudancas.limiteDisponivel,
+    faturasBanco: mudancas.faturasBanco,
     saldo: mudancas.saldo,
     saldoEm: mudancas.saldoEm,
   }
@@ -149,9 +175,10 @@ export async function aplicarSyncPluggy(
   const mapaTipo = new Map<string, TipoConta>()
 
   for (let i = 0; i < pacote.contas.length; i++) {
-    const localId = await upsertConta(pacote.contas[i], i, hoje)
-    mapaConta.set(pacote.contas[i].id, localId)
-    mapaTipo.set(pacote.contas[i].id, tipoContaPluggy(pacote.contas[i]))
+    const contaP = pacote.contas[i]
+    const localId = await upsertConta(contaP, i, hoje, faturasDaConta(pacote.faturas ?? [], contaP.id))
+    mapaConta.set(contaP.id, localId)
+    mapaTipo.set(contaP.id, tipoContaPluggy(contaP))
   }
 
   const fps = pacote.transacoes.map((t) => `pluggy:${t.id}`)
@@ -173,13 +200,21 @@ export async function aplicarSyncPluggy(
 
     const ja = porFp.get(fingerprint)
     if (ja) {
-      // Corrige data antiga (fatura futura) para a data real da compra.
-      if (ja.data !== normalizada.data || ja.tipo !== normalizada.tipo) {
+      const mudou =
+        ja.data !== normalizada.data ||
+        ja.tipo !== normalizada.tipo ||
+        ja.valor !== normalizada.valor ||
+        (ja.faturaMes ?? undefined) !== normalizada.faturaMes ||
+        Boolean(ja.pendente) !== Boolean(normalizada.pendente)
+
+      if (mudou) {
         await db.lancamentos.update(ja.id, {
           data: normalizada.data,
           tipo: normalizada.tipo,
           valor: normalizada.valor,
           descricao: normalizada.descricao,
+          faturaMes: normalizada.faturaMes,
+          pendente: normalizada.pendente,
         })
         corrigidas += 1
       }
@@ -203,6 +238,8 @@ export async function aplicarSyncPluggy(
       descricao: normalizada.descricao,
       parcela: normalizada.parcela,
       totalParcelas: normalizada.totalParcelas,
+      faturaMes: normalizada.faturaMes,
+      pendente: normalizada.pendente,
       origem: 'importado',
       importFingerprint: fingerprint,
       criadoEm: new Date().toISOString(),

@@ -14,7 +14,18 @@ type ContaPluggy = {
     balanceDueDate?: string | null
     availableCreditLimit?: number | null
     creditLimit?: number | null
+    minimumPayment?: number | null
   } | null
+}
+
+type BillPluggy = {
+  id: string
+  dueDate: string
+  billClosingDate: string | null
+  totalAmount: number
+  minimumPaymentAmount?: number | null
+  financeCharges?: Array<{ type: string; amount: number }> | null
+  payments?: Array<{ valueType: string; paymentDate: string; paymentMode: string | null; amount: number }> | null
 }
 
 type TxPluggy = {
@@ -30,7 +41,10 @@ type TxPluggy = {
   creditCardMetadata?: {
     installmentNumber?: number | null
     totalInstallments?: number | null
+    totalAmount?: number | null
     purchaseDate?: string | null
+    billId?: string | null
+    billMonth?: string | null
   } | null
 }
 
@@ -87,6 +101,7 @@ export const handler: Handler = async (event) => {
     const apiKey = await pluggyApiKey()
     const contas: Array<ContaPluggy & { itemId: string }> = []
     const transacoes: Array<TxPluggy & { accountId: string; itemId: string }> = []
+    const faturas: Array<BillPluggy & { accountId: string }> = []
 
     for (const itemId of itemIds) {
       const accounts = (await pluggyFetch(`/accounts?itemId=${encodeURIComponent(itemId)}`, apiKey)) as {
@@ -96,6 +111,18 @@ export const handler: Handler = async (event) => {
         contas.push({ ...conta, itemId })
         const txs = await todasTransacoes(apiKey, conta.id, dateFrom)
         for (const tx of txs) transacoes.push({ ...tx, accountId: conta.id, itemId })
+
+        if (conta.type === 'CREDIT') {
+          // Nem todo conector entrega faturas; sem elas o app cai no cálculo por período.
+          try {
+            const bills = (await pluggyFetch(`/bills?accountId=${encodeURIComponent(conta.id)}`, apiKey)) as {
+              results: BillPluggy[]
+            }
+            for (const bill of bills.results ?? []) faturas.push({ ...bill, accountId: conta.id })
+          } catch {
+            // segue sem faturas
+          }
+        }
       }
     }
 
@@ -104,6 +131,7 @@ export const handler: Handler = async (event) => {
       dateFrom,
       contas,
       transacoes,
+      faturas,
     })
   } catch (erro) {
     return cors(500, { error: erro instanceof Error ? erro.message : 'Erro desconhecido' })
