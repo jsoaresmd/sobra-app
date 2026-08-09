@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useDados } from '../contexts/DadosContext'
 import { SeletorCiclo } from '../components/SeletorCiclo'
+import { TrocarArea } from '../components/TrocarArea'
 import { formatBRL } from '../lib/money'
 import { dentroDo, formatarDiaSemana } from '../lib/dates'
+import type { Lancamento } from '../lib/types'
 
 export function ExtratoPage() {
-  const { resumo, lancamentos, categorias, contas, config, hoje } = useDados()
+  const { resumo, lancamentos, categorias, contas, config, envelopes, hoje } = useDados()
   const [filtroPessoa, setFiltroPessoa] = useState<string | null>(null)
   const [filtroCategoria, setFiltroCategoria] = useState<string | null>(null)
+  const [corrigindo, setCorrigindo] = useState<Lancamento | null>(null)
 
   const doCiclo = useMemo(() => {
     if (!resumo) return []
@@ -75,7 +78,7 @@ export function ExtratoPage() {
       </div>
 
       <p className="muted small">
-        {doCiclo.length} lançamento{doCiclo.length === 1 ? '' : 's'} · saldo {formatBRL(total)}
+        {doCiclo.length} lançamento{doCiclo.length === 1 ? '' : 's'} · saldo {formatBRL(total)} · toque para trocar a área
       </p>
 
       {porDia.length === 0 && <p className="muted small">Nenhum lançamento com esses filtros.</p>}
@@ -91,16 +94,28 @@ export function ExtratoPage() {
           <ul className="lista-lancamentos">
             {itens.map((l) => {
               const categoria = categorias.find((c) => c.id === l.categoriaId)
+              const envelope = envelopes.find((e) => e.id === l.envelopeId)
               const conta = contas.find((c) => c.id === l.contaId)
               const pessoa = config?.pessoas.find((p) => p.id === l.pessoaId)
+              const podeCorrigir = l.tipo === 'despesa'
               return (
                 <li key={l.id}>
-                  <div className="lancamento-link">
-                    <span className="previsto-emoji">{categoria?.emoji ?? '💸'}</span>
+                  <button
+                    type="button"
+                    className="lancamento-link"
+                    disabled={!podeCorrigir}
+                    onClick={() => podeCorrigir && setCorrigindo(l)}
+                  >
+                    <span className="previsto-emoji">{envelope?.emoji ?? categoria?.emoji ?? '💸'}</span>
                     <span className="previsto-info">
                       <strong>{l.descricao || categoria?.nome || 'Lançamento'}</strong>
                       <span className="muted small">
-                        {[conta?.nome, pessoa?.nome, l.totalParcelas ? `${l.parcela}/${l.totalParcelas}` : null]
+                        {[
+                          envelope?.nome ?? (podeCorrigir ? 'sem área' : null),
+                          conta?.nome,
+                          pessoa?.nome,
+                          l.totalParcelas ? `${l.parcela}/${l.totalParcelas}` : null,
+                        ]
                           .filter(Boolean)
                           .join(' · ')}
                       </span>
@@ -108,13 +123,15 @@ export function ExtratoPage() {
                     <span className={`previsto-valor ${l.tipo === 'receita' ? 'receita' : ''}`}>
                       {l.tipo === 'receita' ? '+' : '−'} {formatBRL(l.valor)}
                     </span>
-                  </div>
+                  </button>
                 </li>
               )
             })}
           </ul>
         </section>
       ))}
+
+      {corrigindo && <TrocarArea lancamento={corrigindo} onFechar={() => setCorrigindo(null)} />}
     </div>
   )
 }

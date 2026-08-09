@@ -1094,6 +1094,95 @@ a,
 
 .lancamento-link {
   width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  touch-action: manipulation;
+}
+
+button.lancamento-link:active:not(:disabled) {
+  opacity: 0.6;
+}
+
+/* ---------- Folha de escolha ---------- */
+.folha-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(15, 12, 40, 0.45);
+  padding: 0;
+}
+
+.folha {
+  width: 100%;
+  max-width: 520px;
+  max-height: 82vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0;
+  background: var(--card-solid);
+  box-shadow: 0 -12px 40px rgba(15, 12, 40, 0.25);
+}
+
+.folha h2 {
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.folha-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.folha-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.folha-opcoes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.folha-opcao {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--card-solid);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  touch-action: manipulation;
+}
+
+.folha-opcao.on {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.folha-opcao:active {
+  transform: scale(0.97);
 }
 
 .previsto-emoji {

@@ -1,15 +1,18 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useDados } from '../contexts/DadosContext'
 import { SeletorCiclo } from '../components/SeletorCiclo'
+import { TrocarArea } from '../components/TrocarArea'
 import { formatBRL } from '../lib/money'
 import { dentroDo, formatarDiaSemana } from '../lib/dates'
 import { ROTULO_TIPO_ENVELOPE } from '../lib/envelopes'
+import type { Lancamento } from '../lib/types'
 
 export function EnvelopeDetalhePage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { envelopes, lancamentos, resumo, contas, categorias, hoje } = useDados()
+  const [corrigindo, setCorrigindo] = useState<Lancamento | null>(null)
 
   const envelope = envelopes.find((e) => e.id === id && !e.arquivado)
 
@@ -102,7 +105,7 @@ export function EnvelopeDetalhePage() {
                 const conta = contas.find((c) => c.id === l.contaId)
                 return (
                   <li key={l.id}>
-                    <div className="lancamento-link">
+                    <button type="button" className="lancamento-link" onClick={() => setCorrigindo(l)}>
                       <span className="previsto-emoji">{categoria?.emoji ?? envelope.emoji}</span>
                       <span className="previsto-info">
                         <strong>{l.descricao || categoria?.nome || 'Gasto'}</strong>
@@ -113,7 +116,7 @@ export function EnvelopeDetalhePage() {
                         </span>
                       </span>
                       <span className="previsto-valor">− {formatBRL(l.valor)}</span>
-                    </div>
+                    </button>
                   </li>
                 )
               })}
@@ -125,6 +128,8 @@ export function EnvelopeDetalhePage() {
       <Link to="/extrato" className="cta">
         ver extrato completo
       </Link>
+
+      {corrigindo && <TrocarArea lancamento={corrigindo} onFechar={() => setCorrigindo(null)} />}
     </div>
   )
 }
