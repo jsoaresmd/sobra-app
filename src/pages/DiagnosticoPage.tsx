@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useDados } from '../contexts/DadosContext'
-import { diagnosticoPluggy } from '../lib/pluggyClient'
+import { db } from '../lib/db'
+import { diagnosticoPluggy, itensInexistentes, removerItensPluggy } from '../lib/pluggyClient'
 
 /** Mostra, cru, o que a Pluggy devolve — para conferir os números do app contra a fonte. */
 export function DiagnosticoPage() {
@@ -11,6 +12,7 @@ export function DiagnosticoPage() {
   const [erro, setErro] = useState<string | null>(null)
   const [json, setJson] = useState<string | null>(null)
   const [copiado, setCopiado] = useState(false)
+  const [mortos, setMortos] = useState<string[]>([])
 
   const itemIds = config?.pluggyItemIds ?? []
 
@@ -18,14 +20,37 @@ export function DiagnosticoPage() {
     setBusy(true)
     setErro(null)
     setJson(null)
+    setMortos([])
     try {
       const dados = await diagnosticoPluggy(itemIds, 45)
       setJson(JSON.stringify(dados, null, 2))
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Falhou.')
+      const semItem = itensInexistentes(e, itemIds)
+      setMortos(semItem)
+      setErro(
+        semItem.length > 0
+          ? 'Essa conexão não existe mais na Pluggy.'
+          : e instanceof Error
+            ? e.message
+            : 'Falhou.',
+      )
     } finally {
       setBusy(false)
     }
+  }
+
+  const limparMortos = async () => {
+    try {
+      await removerItensPluggy(mortos)
+    } catch {
+      // Sair daqui já basta para reconectar.
+    }
+    await db.config.update('app', {
+      pluggyItemIds: itemIds.filter((id) => !mortos.includes(id)),
+      pluggyUltimaSync: '',
+    })
+    setMortos([])
+    setErro(null)
   }
 
   const copiar = async () => {
@@ -53,6 +78,16 @@ export function DiagnosticoPage() {
           </button>
         )}
         {erro && <p className="error">{erro}</p>}
+        {mortos.length > 0 && (
+          <>
+            <button type="button" className="primary-btn" onClick={() => void limparMortos()}>
+              Remover conexão quebrada
+            </button>
+            <Link to="/ajustes/bancos" className="cta">
+              depois, conectar banco de novo →
+            </Link>
+          </>
+        )}
         {json && (
           <button type="button" className="mini-btn" onClick={() => void copiar()}>
             {copiado ? 'copiado' : 'copiar tudo'}

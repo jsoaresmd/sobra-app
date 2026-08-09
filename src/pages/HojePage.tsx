@@ -104,6 +104,11 @@ export function HojePage() {
         )}
         {syncMsg && <p className="ok">{syncMsg}</p>}
         {syncErro && <p className="error">{syncErro}</p>}
+        {syncErro && (
+          <Link to="/ajustes/bancos" className="cta">
+            resolver em Bancos →
+          </Link>
+        )}
         {semEtiqueta && (
           <Link to="/ajustes/etiquetar" className="cta">
             Etiquetar gastos sem área →

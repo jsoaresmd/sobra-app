@@ -65,7 +65,7 @@ export const handler: Handler = async (event) => {
     const contasSaida: unknown[] = []
 
     for (const itemId of itemIds) {
-      const item = (await pluggyFetch(`/items/${encodeURIComponent(itemId)}`, apiKey)) as {
+      let item: {
         id: string
         status: string
         executionStatus: string
@@ -73,6 +73,14 @@ export const handler: Handler = async (event) => {
         connector?: { name?: string; type?: string } | null
         error?: unknown
       }
+      try {
+        item = (await pluggyFetch(`/items/${encodeURIComponent(itemId)}`, apiKey)) as typeof item
+      } catch (erro) {
+        // Uma conexão quebrada não pode esconder o resto do diagnóstico.
+        itens.push({ itemId, falhou: erro instanceof Error ? erro.message : 'erro' })
+        continue
+      }
+
       itens.push({
         itemId: item.id,
         conector: item.connector?.name ?? null,
