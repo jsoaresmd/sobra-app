@@ -33,11 +33,28 @@ export const handler: Handler = async (event) => {
   if (metodo(event) !== 'POST') return cors(405, { error: 'Use POST' })
 
   try {
-    const body = parseBody<{ itemIds?: string[]; acao?: 'status' | 'atualizar' }>(event)
+    const body = parseBody<{ itemIds?: string[]; acao?: 'status' | 'atualizar' | 'remover' }>(event)
     const itemIds = (body.itemIds ?? []).filter(Boolean)
     if (itemIds.length === 0) return cors(400, { error: 'Informe ao menos um itemId.' })
 
     const apiKey = await pluggyApiKey()
+
+    if (body.acao === 'remover') {
+      const removidos: string[] = []
+      for (const itemId of itemIds) {
+        try {
+          await pluggyFetch(`/items/${encodeURIComponent(itemId)}`, apiKey, { method: 'DELETE' })
+          removidos.push(itemId)
+        } catch (erro) {
+          // Item que já não existe é o resultado desejado.
+          const texto = erro instanceof Error ? erro.message : ''
+          if (!/404|ITEM_NOT_FOUND/i.test(texto)) throw erro
+          removidos.push(itemId)
+        }
+      }
+      return cors(200, { removidos })
+    }
+
     const itens: Resposta[] = []
 
     for (const itemId of itemIds) {

@@ -1275,6 +1275,13 @@ button.lancamento-link:active:not(:disabled) {
   padding-bottom: 0;
 }
 
+.id-conexao {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
 .diagnostico {
   max-height: 60vh;
   overflow: auto;

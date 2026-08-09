@@ -9,10 +9,12 @@ export const handler: Handler = async (event) => {
     const apiKey = await pluggyApiKey()
     const data = (await pluggyFetch('/connect_token', apiKey, {
       method: 'POST',
+      // Sem `avoidDuplicates`: com ele, quem perde o itemId (limpou o cache, trocou
+      // de aparelho) fica travado no erro "já existe" sem conseguir o id de volta,
+      // já que a Pluggy não lista conexões.
       body: JSON.stringify({
         options: {
           clientUserId: 'sobra-pessoal',
-          avoidDuplicates: true,
         },
       }),
     })) as { accessToken: string }

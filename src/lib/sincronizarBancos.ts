@@ -1,5 +1,11 @@
 import { db } from './db'
-import { pedirAtualizacaoPluggy, sincronizarPluggy, statusItensPluggy, type ItemStatus } from './pluggyClient'
+import {
+  itensInexistentes,
+  pedirAtualizacaoPluggy,
+  sincronizarPluggy,
+  statusItensPluggy,
+  type ItemStatus,
+} from './pluggyClient'
 import { aplicarSyncPluggy } from './pluggySync'
 import { fromISO, toISO } from './dates'
 import type { Categoria, Config, Envelope, RegraImportacao } from './types'
@@ -45,6 +51,19 @@ async function coletarNoBanco(itemIds: string[], onProgresso?: (m: string) => vo
   return itens
 }
 
+/**
+ * Conexão que a Pluggy não reconhece mais não pode ficar salva: ela trava toda
+ * sincronização seguinte. Some do app para que reconectar volte a ser possível.
+ */
+async function esquecerItensMortos(erro: unknown, itemIds: string[]) {
+  const mortos = itensInexistentes(erro, itemIds)
+  if (mortos.length === 0) return false
+
+  const restantes = itemIds.filter((id) => !mortos.includes(id))
+  await db.config.update('app', { pluggyItemIds: restantes, pluggyUltimaSync: '' })
+  return true
+}
+
 /** Sincroniza todos os itemIds salvos na config e aplica no Dexie. */
 export async function sincronizarBancosAbertos(
   config: Config,
@@ -61,7 +80,14 @@ export async function sincronizarBancosAbertos(
 
   let itens: ItemStatus[] = []
   if (!opcoes.semAtualizarNoBanco) {
-    itens = await coletarNoBanco(itemIds, opcoes.onProgresso)
+    try {
+      itens = await coletarNoBanco(itemIds, opcoes.onProgresso)
+    } catch (erro) {
+      if (await esquecerItensMortos(erro, itemIds)) {
+        throw new Error('Essa conexão não existe mais na Pluggy. Toque em Conectar banco para refazer.')
+      }
+      throw erro
+    }
   }
 
   const temContaPluggy = (await db.contas.toArray()).some((c) => c.pluggyAccountId)
@@ -78,9 +104,17 @@ export async function sincronizarBancosAbertos(
   }
 
   opcoes.onProgresso?.('Lendo lançamentos…')
-  const pacote = await sincronizarPluggy(itemIds, dateFrom)
+  let pacote
+  try {
+    pacote = await sincronizarPluggy(itemIds, dateFrom)
+  } catch (erro) {
+    if (await esquecerItensMortos(erro, itemIds)) {
+      throw new Error('Essa conexão não existe mais na Pluggy. Toque em Conectar banco para refazer.')
+    }
+    throw erro
+  }
   if (!pacote.contas.length) {
-    throw new Error('Item ID sem contas na Pluggy. Confira se é o ID certo.')
+    throw new Error('Conexão sem contas na Pluggy. Reconecte o banco.')
   }
 
   const resultado = await aplicarSyncPluggy(pacote, envelopes, regras, hoje, categorias)

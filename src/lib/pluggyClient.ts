@@ -134,6 +134,24 @@ export async function statusItensPluggy(itemIds: string[]) {
   return data.itens
 }
 
+export async function removerItensPluggy(itemIds: string[]) {
+  const data = await chamar<{ removidos: string[] }>('/pluggy-item', {
+    method: 'POST',
+    body: JSON.stringify({ itemIds, acao: 'remover' }),
+  })
+  return data.removidos
+}
+
+const UUID_SOLTO = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
+
+/** Ids que a Pluggy diz não existirem mais — a conexão foi apagada ou é de outra aplicação. */
+export function itensInexistentes(erro: unknown, candidatos: string[]) {
+  const texto = erro instanceof Error ? erro.message : String(erro ?? '')
+  if (!/ITEM_NOT_FOUND|404/i.test(texto)) return []
+  const citados = new Set((texto.match(UUID_SOLTO) ?? []).map((id) => id.toLowerCase()))
+  return candidatos.filter((id) => citados.has(id.toLowerCase()))
+}
+
 export async function diagnosticoPluggy(itemIds: string[], dias = 45) {
   return chamar<Record<string, unknown>>('/pluggy-diagnostico', {
     method: 'POST',

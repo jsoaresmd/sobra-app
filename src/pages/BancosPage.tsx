@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useDados } from '../contexts/DadosContext'
 import { db } from '../lib/db'
-import { criarConnectToken, abrirPluggyConnect } from '../lib/pluggyClient'
+import { criarConnectToken, abrirPluggyConnect, removerItensPluggy } from '../lib/pluggyClient'
 import { sincronizarBancosAbertos } from '../lib/sincronizarBancos'
 import { formatarCurto } from '../lib/dates'
 import { formatBRL } from '../lib/money'
@@ -40,15 +40,23 @@ export function BancosPage() {
       salvarIds([...itemIds, ...ids])
       setOk(nova ? 'Conectado.' : 'Conexão recuperada.')
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Não consegui abrir a conexão.'
-      if (/already exists|ITEM_USER_ALREADY_EXISTS|item_user_already_exists/i.test(msg)) {
-        setErro('Conexão já existe. Cole o Item ID abaixo.')
-      } else {
-        setErro(msg)
-      }
+      setErro(e instanceof Error ? e.message : 'Não consegui abrir a conexão.')
     } finally {
       setBusy(null)
     }
+  }
+
+  const removerItem = async (id: string) => {
+    if (!confirm('Remover esta conexão? Os lançamentos já baixados continuam no app.')) return
+    setErro(null)
+    setOk(null)
+    try {
+      await removerItensPluggy([id])
+    } catch {
+      // Mesmo se a Pluggy recusar, tirar daqui destrava reconectar.
+    }
+    salvarIds(itemIds.filter((i) => i !== id))
+    setOk('Conexão removida.')
   }
 
   const salvarItemManual = () => {
@@ -103,6 +111,19 @@ export function BancosPage() {
                 config?.pluggyUltimaSync ? ` · ${formatarCurto(config.pluggyUltimaSync.slice(0, 10))}` : ''
               }`}
         </p>
+
+        {itemIds.length > 0 && (
+          <ul className="lista-simples">
+            {itemIds.map((id) => (
+              <li key={id}>
+                <span className="muted small id-conexao">{id}</span>
+                <button type="button" className="mini-btn" onClick={() => void removerItem(id)}>
+                  remover
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {contasPluggy.length > 0 && (
           <ul className="lista-simples">
