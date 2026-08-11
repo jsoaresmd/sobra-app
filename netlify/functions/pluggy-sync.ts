@@ -50,9 +50,12 @@ type TxPluggy = {
 
 async function todasTransacoes(apiKey: string, accountId: string, dateFrom: string) {
   const resultados: TxPluggy[] = []
+  // dateTo no futuro: compras PENDING do cartão usam a data da fatura (ainda não fechada).
+  const dateTo = new Date(Date.now() + 1000 * 60 * 60 * 24 * 60).toISOString().slice(0, 10)
   const primeiro = new URLSearchParams({
     accountId,
     dateFrom,
+    dateTo,
   })
   let path: string | null = `/v2/transactions?${primeiro}`
 

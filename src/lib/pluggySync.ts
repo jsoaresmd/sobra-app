@@ -32,7 +32,7 @@ function corConta(tipo: TipoConta) {
   return '#2f9e6e'
 }
 
-function txComoNubank(tx: TxPluggySync, contaTipo: TipoConta): TxImportada {
+function txComoNubank(tx: TxPluggySync, contaTipo: TipoConta, hoje: string): TxImportada {
   const titulo = tx.descriptionRaw || tx.description || 'Lançamento'
   const { parcela, totalParcelas } = extrairParcela(titulo)
   const metaParcela = tx.creditCardMetadata?.installmentNumber ?? undefined
@@ -42,18 +42,17 @@ function txComoNubank(tx: TxPluggySync, contaTipo: TipoConta): TxImportada {
 
   const dataFatura = tx.date.slice(0, 10)
   const dataCompra = tx.creditCardMetadata?.purchaseDate?.slice(0, 10)
-  const numeroParcela = metaParcela ?? parcela
+  const numeroParcela = metaParcela ?? parcela ?? 1
   const totalDeParcelas = metaTotal ?? totalParcelas ?? 1
+  const primeiraParcela = totalDeParcelas <= 1 || numeroParcela === 1
 
-  // Da 2ª parcela em diante a data que vale é a da fatura que cobra aquela
-  // parcela; senão a compra inteira cairia no mês em que foi feita.
-  const usarDataDaCompra =
-    contaTipo === 'credito' &&
-    Boolean(dataCompra) &&
-    dataCompra! < dataFatura &&
-    (totalDeParcelas <= 1 || (numeroParcela ?? 1) === 1)
-
-  const data = usarDataDaCompra ? dataCompra! : dataFatura
+  // Cartão: a Pluggy manda `date` da fatura (às vezes no futuro). O extrato do
+  // app precisa da data em que você gastou, senão some atrás do filtro “até hoje”.
+  let data = dataFatura
+  if (contaTipo === 'credito' && primeiraParcela) {
+    if (dataCompra) data = dataCompra
+    else if (tx.status === 'PENDING' && dataFatura > hoje) data = hoje
+  }
 
   let tipo: 'despesa' | 'receita'
   if (contaTipo === 'credito') {
@@ -191,12 +190,14 @@ export async function aplicarSyncPluggy(
   let etiquetadas = 0
   let semEtiqueta = 0
   let corrigidas = 0
+  let pendentes = 0
 
   for (const tx of pacote.transacoes) {
     const fingerprint = `pluggy:${tx.id}`
     const contaTipo = mapaTipo.get(tx.accountId) ?? 'debito'
-    const normalizada = txComoNubank(tx, contaTipo)
+    const normalizada = txComoNubank(tx, contaTipo, hoje)
     if (normalizada.origem === 'pagamento') continue
+    if (normalizada.pendente) pendentes += 1
 
     const ja = porFp.get(fingerprint)
     if (ja) {
@@ -223,7 +224,7 @@ export async function aplicarSyncPluggy(
 
     const sugestao = sugerirEnvelope(normalizada, envelopes, regras, categorias, tx.category)
     const contaId = mapaConta.get(tx.accountId) ?? null
-    const { hora } = partirDataHora(tx.date)
+    const { hora } = partirDataHora(tx.creditCardMetadata?.purchaseDate || tx.date)
 
     const lancamento: Lancamento = {
       id: novoId(),
@@ -287,6 +288,7 @@ export async function aplicarSyncPluggy(
     etiquetadas,
     semEtiqueta,
     corrigidas,
+    pendentes,
     contas: pacote.contas.length,
     transacoesRecebidas: pacote.transacoes.length,
     resumoContas,

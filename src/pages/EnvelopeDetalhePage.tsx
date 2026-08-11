@@ -5,6 +5,7 @@ import { SeletorCiclo } from '../components/SeletorCiclo'
 import { TrocarArea } from '../components/TrocarArea'
 import { formatBRL } from '../lib/money'
 import { dentroDo, formatarDiaSemana } from '../lib/dates'
+import { jaAconteceu } from '../lib/competencia'
 import { ROTULO_TIPO_ENVELOPE } from '../lib/envelopes'
 import type { Lancamento } from '../lib/types'
 
@@ -23,8 +24,8 @@ export function EnvelopeDetalhePage() {
         (l) =>
           l.envelopeId === envelope.id &&
           l.tipo === 'despesa' &&
-          l.data <= hoje &&
-          dentroDo(resumo.ciclo, l.data),
+          jaAconteceu(l, hoje) &&
+          dentroDo(resumo.ciclo, l.data <= hoje ? l.data : hoje),
       )
       .sort((a, b) => (b.data === a.data ? b.criadoEm.localeCompare(a.criadoEm) : b.data.localeCompare(a.data)))
   }, [lancamentos, resumo, envelope, hoje])

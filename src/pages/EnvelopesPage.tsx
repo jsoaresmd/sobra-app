@@ -6,6 +6,7 @@ import { db, novoId } from '../lib/db'
 import { ROTULO_TIPO_ENVELOPE } from '../lib/envelopes'
 import { formatBRL } from '../lib/money'
 import { dentroDo } from '../lib/dates'
+import { jaAconteceu } from '../lib/competencia'
 import type { Envelope, TipoEnvelope } from '../lib/types'
 
 const CORES = ['#2f9e6e', '#e8734a', '#3f7ec4', '#8a6cc4', '#d4557f', '#c9821f', '#6f7ce0', '#14855f']
@@ -24,8 +25,8 @@ export function EnvelopesPage() {
     if (!resumo) return mapa
     for (const l of lancamentos) {
       if (l.tipo !== 'despesa' || !l.envelopeId) continue
-      if (l.data > hoje) continue
-      if (!dentroDo(resumo.ciclo, l.data)) continue
+      if (!jaAconteceu(l, hoje)) continue
+      if (!dentroDo(resumo.ciclo, l.data <= hoje ? l.data : hoje)) continue
       mapa.set(l.envelopeId, (mapa.get(l.envelopeId) ?? 0) + l.valor)
     }
     return mapa

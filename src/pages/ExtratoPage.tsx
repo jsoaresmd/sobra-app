@@ -4,6 +4,7 @@ import { SeletorCiclo } from '../components/SeletorCiclo'
 import { TrocarArea } from '../components/TrocarArea'
 import { formatBRL } from '../lib/money'
 import { dentroDo, formatarDiaSemana } from '../lib/dates'
+import { jaAconteceu } from '../lib/competencia'
 import type { Lancamento } from '../lib/types'
 
 export function ExtratoPage() {
@@ -15,8 +16,8 @@ export function ExtratoPage() {
   const doCiclo = useMemo(() => {
     if (!resumo) return []
     return lancamentos
-      .filter((l) => l.data <= hoje)
-      .filter((l) => dentroDo(resumo.ciclo, l.data))
+      .filter((l) => jaAconteceu(l, hoje))
+      .filter((l) => dentroDo(resumo.ciclo, l.data <= hoje ? l.data : hoje))
       .filter((l) => !filtroPessoa || l.pessoaId === filtroPessoa)
       .filter((l) => !filtroCategoria || l.categoriaId === filtroCategoria)
       .sort((a, b) => (b.data === a.data ? b.criadoEm.localeCompare(a.criadoEm) : b.data.localeCompare(a.data)))
@@ -114,6 +115,7 @@ export function ExtratoPage() {
                           envelope?.nome ?? (podeCorrigir ? 'sem área' : null),
                           conta?.nome,
                           pessoa?.nome,
+                          l.pendente && l.data > hoje ? 'na fatura aberta' : null,
                           l.totalParcelas ? `${l.parcela}/${l.totalParcelas}` : null,
                         ]
                           .filter(Boolean)

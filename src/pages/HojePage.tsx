@@ -5,6 +5,7 @@ import { useDados } from '../contexts/DadosContext'
 import { CartaoResumo } from '../components/CartaoResumo'
 import { formatBRL } from '../lib/money'
 import { dentroDo, formatarCurto } from '../lib/dates'
+import { jaAconteceu } from '../lib/competencia'
 import { db } from '../lib/db'
 import { sincronizarBancosAbertos } from '../lib/sincronizarBancos'
 import { ROTULO_TIPO_ENVELOPE } from '../lib/envelopes'
@@ -21,8 +22,8 @@ export function HojePage() {
     if (!resumo) return mapa
     for (const l of lancamentos) {
       if (l.tipo !== 'despesa' || !l.envelopeId) continue
-      if (l.data > hoje) continue
-      if (!dentroDo(resumo.ciclo, l.data)) continue
+      if (!jaAconteceu(l, hoje)) continue
+      if (!dentroDo(resumo.ciclo, l.data <= hoje ? l.data : hoje)) continue
       mapa.set(l.envelopeId, (mapa.get(l.envelopeId) ?? 0) + l.valor)
     }
     return mapa
@@ -35,7 +36,7 @@ export function HojePage() {
   const planejamento = ativos.filter((e) => e.tipo === 'variavel')
   const fixos = ativos.filter((e) => e.tipo === 'fixo')
   const semEtiqueta = lancamentos.some(
-    (l) => l.origem === 'importado' && l.tipo === 'despesa' && !l.envelopeId && l.data <= hoje,
+    (l) => l.origem === 'importado' && l.tipo === 'despesa' && !l.envelopeId && jaAconteceu(l, hoje),
   )
 
   const card = (envelope: (typeof ativos)[0]) => {
@@ -76,6 +77,7 @@ export function HojePage() {
       })
       const partes = [`${r.novas} novo${r.novas === 1 ? '' : 's'}`]
       if (r.corrigidas) partes.push(`${r.corrigidas} corrigido${r.corrigidas === 1 ? '' : 's'}`)
+      if (r.pendentes) partes.push(`${r.pendentes} na fatura aberta`)
       if (r.semEtiqueta) partes.push(`${r.semEtiqueta} sem área`)
       setSyncMsg(partes.join(' · '))
     } catch (e) {

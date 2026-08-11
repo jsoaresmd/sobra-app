@@ -138,11 +138,10 @@ export function BancosPage() {
         forcarCompleto: true,
         onProgresso: setOk,
       })
-      setOk(
-        `${r.novas} novo${r.novas === 1 ? '' : 's'}${
-          r.corrigidas ? ` · ${r.corrigidas} corrigido${r.corrigidas === 1 ? '' : 's'}` : ''
-        }`,
-      )
+      const partes = [`${r.novas} novo${r.novas === 1 ? '' : 's'}`]
+      if (r.corrigidas) partes.push(`${r.corrigidas} corrigido${r.corrigidas === 1 ? '' : 's'}`)
+      if (r.pendentes) partes.push(`${r.pendentes} na fatura aberta`)
+      setOk(partes.join(' · '))
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Falha na sincronização.')
     } finally {
