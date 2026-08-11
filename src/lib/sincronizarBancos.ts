@@ -39,15 +39,6 @@ async function coletarNoBanco(itemIds: string[], onProgresso?: (m: string) => vo
     onProgresso?.('O banco está enviando os dados…')
   }
 
-  const precisaAutorizar = itens.find(
-    (i) => i.status === 'WAITING_USER_INPUT' || i.status === 'LOGIN_ERROR' || i.status === 'OUTDATED',
-  )
-  if (precisaAutorizar) {
-    throw new Error(
-      `O banco pediu nova autorização (${precisaAutorizar.status}). Em Bancos, toque em Conectar banco e refaça o consentimento.`,
-    )
-  }
-
   return itens
 }
 
@@ -55,13 +46,23 @@ async function coletarNoBanco(itemIds: string[], onProgresso?: (m: string) => vo
  * Conexão que a Pluggy não reconhece mais não pode ficar salva: ela trava toda
  * sincronização seguinte. Some do app para que reconectar volte a ser possível.
  */
-async function esquecerItensMortos(erro: unknown, itemIds: string[]) {
-  const mortos = itensInexistentes(erro, itemIds)
+async function esquecerItens(mortos: string[]) {
   if (mortos.length === 0) return false
-
-  const restantes = itemIds.filter((id) => !mortos.includes(id))
-  await db.config.update('app', { pluggyItemIds: restantes, pluggyUltimaSync: '' })
+  const config = await db.config.get('app')
+  const atuais = config?.pluggyItemIds ?? []
+  await db.config.update('app', {
+    pluggyItemIds: atuais.filter((id) => !mortos.includes(id)),
+    pluggyUltimaSync: '',
+  })
   return true
+}
+
+async function esquecerItensMortos(erro: unknown, itemIds: string[]) {
+  return esquecerItens(itensInexistentes(erro, itemIds))
+}
+
+function naoExisteMais(item: ItemStatus) {
+  return Boolean(item.falhou && /ITEM_NOT_FOUND|404/i.test(item.falhou))
 }
 
 /** Sincroniza todos os itemIds salvos na config e aplica no Dexie. */
@@ -73,7 +74,7 @@ export async function sincronizarBancosAbertos(
   categorias: Categoria[] = [],
   opcoes: OpcoesSync = {},
 ) {
-  const itemIds = config.pluggyItemIds ?? []
+  let itemIds = config.pluggyItemIds ?? []
   if (itemIds.length === 0) {
     throw new Error('Conecte um banco em Ajustes → Bancos antes de sincronizar.')
   }
@@ -84,9 +85,29 @@ export async function sincronizarBancosAbertos(
       itens = await coletarNoBanco(itemIds, opcoes.onProgresso)
     } catch (erro) {
       if (await esquecerItensMortos(erro, itemIds)) {
-        throw new Error('Essa conexão não existe mais na Pluggy. Toque em Conectar banco para refazer.')
+        throw new Error('Conexão antiga removida. Toque em Conectar banco para refazer.')
       }
       throw erro
+    }
+
+    // Conexões apagadas na Pluggy saem da lista; as boas seguem normalmente.
+    const mortos = itens.filter(naoExisteMais).map((i) => i.itemId)
+    if (mortos.length > 0) {
+      await esquecerItens(mortos)
+      itemIds = itemIds.filter((id) => !mortos.includes(id))
+      itens = itens.filter((i) => !mortos.includes(i.itemId))
+      if (itemIds.length === 0) {
+        throw new Error('Conexão antiga removida. Toque em Conectar banco para refazer.')
+      }
+    }
+
+    const precisaAutorizar = itens.find(
+      (i) => i.status === 'WAITING_USER_INPUT' || i.status === 'LOGIN_ERROR' || i.status === 'OUTDATED',
+    )
+    if (precisaAutorizar) {
+      throw new Error(
+        `O banco pediu nova autorização (${precisaAutorizar.status}). Em Bancos, toque em Conectar banco e refaça o consentimento.`,
+      )
     }
   }
 
@@ -109,12 +130,22 @@ export async function sincronizarBancosAbertos(
     pacote = await sincronizarPluggy(itemIds, dateFrom)
   } catch (erro) {
     if (await esquecerItensMortos(erro, itemIds)) {
-      throw new Error('Essa conexão não existe mais na Pluggy. Toque em Conectar banco para refazer.')
+      throw new Error('Conexão antiga removida. Toque em Conectar banco para refazer.')
     }
     throw erro
   }
+
+  if (pacote.mortos?.length) {
+    await esquecerItens(pacote.mortos)
+    itemIds = itemIds.filter((id) => !pacote.mortos!.includes(id))
+  }
+
   if (!pacote.contas.length) {
-    throw new Error('Conexão sem contas na Pluggy. Reconecte o banco.')
+    throw new Error(
+      itemIds.length === 0
+        ? 'Conexão antiga removida. Toque em Conectar banco para refazer.'
+        : 'Conexão sem contas na Pluggy. Reconecte o banco.',
+    )
   }
 
   const resultado = await aplicarSyncPluggy(pacote, envelopes, regras, hoje, categorias)

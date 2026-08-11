@@ -18,6 +18,8 @@ type Resposta = {
   erro: string | null
   /** Preenchido quando a Pluggy recusa atualizar de novo tão cedo. */
   aguardando: string | null
+  /** Preenchido quando a conexão nem pôde ser consultada (ex.: não existe mais). */
+  falhou: string | null
 }
 
 async function ler(itemId: string, apiKey: string): Promise<ItemPluggy> {
@@ -60,30 +62,45 @@ export const handler: Handler = async (event) => {
     for (const itemId of itemIds) {
       let aguardando: string | null = null
 
-      if (body.acao === 'atualizar') {
-        try {
-          await pluggyFetch(`/items/${encodeURIComponent(itemId)}`, apiKey, {
-            method: 'PATCH',
-            body: JSON.stringify({}),
-          })
-        } catch (erro) {
-          const texto = erro instanceof Error ? erro.message : String(erro)
-          // 409: atualização pedida antes da frequência mínima. Seguimos com o que já existe.
-          if (!/409|BEFORE_ALLOWED_FREQUENCY/i.test(texto)) throw erro
-          aguardando = texto
+      try {
+        if (body.acao === 'atualizar') {
+          try {
+            await pluggyFetch(`/items/${encodeURIComponent(itemId)}`, apiKey, {
+              method: 'PATCH',
+              body: JSON.stringify({}),
+            })
+          } catch (erro) {
+            const texto = erro instanceof Error ? erro.message : String(erro)
+            // 409: atualização pedida antes da frequência mínima. Seguimos com o que já existe.
+            if (!/409|BEFORE_ALLOWED_FREQUENCY|ALREADY_UPDATING/i.test(texto)) throw erro
+            aguardando = texto
+          }
         }
-      }
 
-      const item = await ler(itemId, apiKey)
-      itens.push({
-        itemId,
-        status: item.status,
-        executionStatus: item.executionStatus,
-        lastUpdatedAt: item.lastUpdatedAt ?? null,
-        conector: item.connector?.name ?? null,
-        erro: item.error?.message ?? null,
-        aguardando,
-      })
+        const item = await ler(itemId, apiKey)
+        itens.push({
+          itemId,
+          status: item.status,
+          executionStatus: item.executionStatus,
+          lastUpdatedAt: item.lastUpdatedAt ?? null,
+          conector: item.connector?.name ?? null,
+          erro: item.error?.message ?? null,
+          aguardando,
+          falhou: null,
+        })
+      } catch (erro) {
+        // Uma conexão quebrada não pode derrubar as outras nem travar a sincronização.
+        itens.push({
+          itemId,
+          status: 'FALHOU',
+          executionStatus: 'FALHOU',
+          lastUpdatedAt: null,
+          conector: null,
+          erro: null,
+          aguardando,
+          falhou: erro instanceof Error ? erro.message : 'erro',
+        })
+      }
     }
 
     return cors(200, { itens })

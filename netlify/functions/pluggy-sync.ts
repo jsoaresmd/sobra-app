@@ -103,26 +103,37 @@ export const handler: Handler = async (event) => {
     const transacoes: Array<TxPluggy & { accountId: string; itemId: string }> = []
     const faturas: Array<BillPluggy & { accountId: string }> = []
 
-    for (const itemId of itemIds) {
-      const accounts = (await pluggyFetch(`/accounts?itemId=${encodeURIComponent(itemId)}`, apiKey)) as {
-        results: ContaPluggy[]
-      }
-      for (const conta of accounts.results ?? []) {
-        contas.push({ ...conta, itemId })
-        const txs = await todasTransacoes(apiKey, conta.id, dateFrom)
-        for (const tx of txs) transacoes.push({ ...tx, accountId: conta.id, itemId })
+    const mortos: string[] = []
 
-        if (conta.type === 'CREDIT') {
-          // Nem todo conector entrega faturas; sem elas o app cai no cálculo por período.
-          try {
-            const bills = (await pluggyFetch(`/bills?accountId=${encodeURIComponent(conta.id)}`, apiKey)) as {
-              results: BillPluggy[]
+    for (const itemId of itemIds) {
+      try {
+        const accounts = (await pluggyFetch(`/accounts?itemId=${encodeURIComponent(itemId)}`, apiKey)) as {
+          results: ContaPluggy[]
+        }
+        for (const conta of accounts.results ?? []) {
+          contas.push({ ...conta, itemId })
+          const txs = await todasTransacoes(apiKey, conta.id, dateFrom)
+          for (const tx of txs) transacoes.push({ ...tx, accountId: conta.id, itemId })
+
+          if (conta.type === 'CREDIT') {
+            // Nem todo conector entrega faturas; sem elas o app cai no cálculo por período.
+            try {
+              const bills = (await pluggyFetch(`/bills?accountId=${encodeURIComponent(conta.id)}`, apiKey)) as {
+                results: BillPluggy[]
+              }
+              for (const bill of bills.results ?? []) faturas.push({ ...bill, accountId: conta.id })
+            } catch {
+              // segue sem faturas
             }
-            for (const bill of bills.results ?? []) faturas.push({ ...bill, accountId: conta.id })
-          } catch {
-            // segue sem faturas
           }
         }
+      } catch (erro) {
+        const texto = erro instanceof Error ? erro.message : String(erro)
+        if (/404|ITEM_NOT_FOUND/i.test(texto)) {
+          mortos.push(itemId)
+          continue
+        }
+        throw erro
       }
     }
 
@@ -132,6 +143,7 @@ export const handler: Handler = async (event) => {
       contas,
       transacoes,
       faturas,
+      mortos,
     })
   } catch (erro) {
     return cors(500, { error: erro instanceof Error ? erro.message : 'Erro desconhecido' })

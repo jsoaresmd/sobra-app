@@ -58,6 +58,8 @@ export type SyncPluggyResultado = {
   contas: ContaPluggySync[]
   transacoes: TxPluggySync[]
   faturas?: FaturaPluggy[]
+  /** ItemIds que a Pluggy disse não existirem nesta aplicação. */
+  mortos?: string[]
 }
 
 export type ItemStatus = {
@@ -68,6 +70,8 @@ export type ItemStatus = {
   conector: string | null
   erro: string | null
   aguardando: string | null
+  /** Quando preenchido, a conexão nem pôde ser consultada. */
+  falhou?: string | null
 }
 
 function apiBase() {
