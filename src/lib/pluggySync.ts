@@ -46,12 +46,17 @@ function txComoNubank(tx: TxPluggySync, contaTipo: TipoConta, hoje: string): TxI
   const totalDeParcelas = metaTotal ?? totalParcelas ?? 1
   const primeiraParcela = totalDeParcelas <= 1 || numeroParcela === 1
 
-  // Cartão: a Pluggy manda `date` da fatura (às vezes no futuro). O extrato do
-  // app precisa da data em que você gastou, senão some atrás do filtro “até hoje”.
+  // Cartão: `date` costuma ser da fatura (às vezes no futuro), com ou sem status
+  // PENDING. Sem purchaseDate, a 1ª parcela/à vista cai em hoje para não sumir.
   let data = dataFatura
+  let pendente = tx.status === 'PENDING' || undefined
   if (contaTipo === 'credito' && primeiraParcela) {
-    if (dataCompra) data = dataCompra
-    else if (tx.status === 'PENDING' && dataFatura > hoje) data = hoje
+    if (dataCompra) {
+      data = dataCompra
+    } else if (dataFatura > hoje) {
+      data = hoje
+      pendente = true
+    }
   }
 
   let tipo: 'despesa' | 'receita'
@@ -80,7 +85,7 @@ function txComoNubank(tx: TxPluggySync, contaTipo: TipoConta, hoje: string): TxI
     totalParcelas: totalFinal,
     origem: ehPagamento ? 'pagamento' : /^IOF\b/i.test(titulo) ? 'iof' : 'compra',
     faturaMes: tx.creditCardMetadata?.billMonth ?? undefined,
-    pendente: tx.status === 'PENDING' ? true : undefined,
+    pendente: pendente || undefined,
   }
 }
 
@@ -283,6 +288,14 @@ export async function aplicarSyncPluggy(
     return { nome, tipo, valor }
   })
 
+  // Data mais nova que o banco mandou (compra ou fatura) — para saber se os
+  // últimos dias chegaram ou se a Pluggy ainda não entregou.
+  let dataMaisRecenteBanco: string | null = null
+  for (const tx of pacote.transacoes) {
+    const candidata = (tx.creditCardMetadata?.purchaseDate || tx.date).slice(0, 10)
+    if (!dataMaisRecenteBanco || candidata > dataMaisRecenteBanco) dataMaisRecenteBanco = candidata
+  }
+
   return {
     novas,
     etiquetadas,
@@ -291,6 +304,7 @@ export async function aplicarSyncPluggy(
     pendentes,
     contas: pacote.contas.length,
     transacoesRecebidas: pacote.transacoes.length,
+    dataMaisRecenteBanco,
     resumoContas,
   }
 }

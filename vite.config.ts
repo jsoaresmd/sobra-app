@@ -33,7 +33,7 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/\.netlify\//],
         // Força o SW a invalidar caches antigos que deixavam o layout “zoomed”.
-        cacheId: 'sobra-2026-08-10-pending',
+        cacheId: 'sobra-2026-08-10-pending2',
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,

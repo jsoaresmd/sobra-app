@@ -48,16 +48,9 @@ type TxPluggy = {
   } | null
 }
 
-async function todasTransacoes(apiKey: string, accountId: string, dateFrom: string) {
+async function paginarTransacoes(apiKey: string, params: URLSearchParams) {
   const resultados: TxPluggy[] = []
-  // dateTo no futuro: compras PENDING do cartão usam a data da fatura (ainda não fechada).
-  const dateTo = new Date(Date.now() + 1000 * 60 * 60 * 24 * 60).toISOString().slice(0, 10)
-  const primeiro = new URLSearchParams({
-    accountId,
-    dateFrom,
-    dateTo,
-  })
-  let path: string | null = `/v2/transactions?${primeiro}`
+  let path: string | null = `/v2/transactions?${params}`
 
   // Cursor pagination: a resposta traz `next` (ex.: "?accountId=...&after=...") até acabar.
   for (let i = 0; i < 100 && path; i++) {
@@ -83,6 +76,32 @@ async function todasTransacoes(apiKey: string, accountId: string, dateFrom: stri
   }
 
   return resultados
+}
+
+async function todasTransacoes(apiKey: string, accountId: string, dateFrom: string) {
+  // dateTo no futuro: compras do cartão usam a data da fatura (ainda não fechada).
+  const dateTo = new Date(Date.now() + 1000 * 60 * 60 * 24 * 60).toISOString().slice(0, 10)
+  const porData = await paginarTransacoes(
+    apiKey,
+    new URLSearchParams({ accountId, dateFrom, dateTo }),
+  )
+
+  // Segunda varredura por createdAt: pega o que a Pluggy acabou de ingerir mesmo
+  // quando a data da fatura foge do filtro por `date`.
+  const createdAtFrom = new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString()
+  let porCriacao: TxPluggy[] = []
+  try {
+    porCriacao = await paginarTransacoes(
+      apiKey,
+      new URLSearchParams({ accountId, createdAtFrom }),
+    )
+  } catch {
+    // Nem todo ambiente aceita createdAtFrom junto; a busca por date já veio.
+  }
+
+  const porId = new Map<string, TxPluggy>()
+  for (const tx of [...porData, ...porCriacao]) porId.set(tx.id, tx)
+  return [...porId.values()]
 }
 
 /**

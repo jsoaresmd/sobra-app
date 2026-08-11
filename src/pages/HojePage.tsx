@@ -78,6 +78,7 @@ export function HojePage() {
       const partes = [`${r.novas} novo${r.novas === 1 ? '' : 's'}`]
       if (r.corrigidas) partes.push(`${r.corrigidas} corrigido${r.corrigidas === 1 ? '' : 's'}`)
       if (r.pendentes) partes.push(`${r.pendentes} na fatura aberta`)
+      if (r.dataMaisRecenteBanco) partes.push(`banco até ${formatarCurto(r.dataMaisRecenteBanco)}`)
       if (r.semEtiqueta) partes.push(`${r.semEtiqueta} sem área`)
       setSyncMsg(partes.join(' · '))
     } catch (e) {
