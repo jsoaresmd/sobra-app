@@ -268,49 +268,92 @@ function Classificar({
   const { categorias, estabelecimentos } = useDados()
   const [apelidos, setApelidos] = useState<Record<string, string>>({})
   const [reembolso, setReembolso] = useState<string | null>(null)
+  const [feitos, setFeitos] = useState<string[]>([])
+  const [ocupado, setOcupado] = useState<string | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
   const grupos = useMemo(() => {
     const mapa = new Map<string, typeof semCategoria>()
     for (const linha of semCategoria) {
+      if (feitos.includes(linha.estabelecimentoChave)) continue
       const lista = mapa.get(linha.estabelecimentoChave) ?? []
       lista.push(linha)
       mapa.set(linha.estabelecimentoChave, lista)
     }
     return [...mapa.entries()]
-  }, [semCategoria])
+  }, [semCategoria, feitos])
+  const entradasAbertas = entradas.filter((linha) => !feitos.includes(linha.id))
 
-  if (grupos.length === 0 && entradas.length === 0) return <p>Tudo classificado.</p>
+  const escolher = async (chave: string, categoriaId: string) => {
+    if (ocupado) return
+    setErro(null)
+    setOcupado(chave)
+    setFeitos((atual) => (atual.includes(chave) ? atual : [...atual, chave]))
+    try {
+      await classificarEstabelecimento(chave, categoriaId, apelidos[chave])
+    } catch (e) {
+      setFeitos((atual) => atual.filter((item) => item !== chave))
+      setErro(e instanceof Error ? e.message : 'Não consegui gravar a categoria.')
+    } finally {
+      setOcupado(null)
+    }
+  }
+
+  const confirmar = async (id: string, categoriaId: string) => {
+    if (ocupado) return
+    setErro(null)
+    setOcupado(id)
+    setFeitos((atual) => (atual.includes(id) ? atual : [...atual, id]))
+    try {
+      await confirmarEntrada(id, categoriaId)
+    } catch (e) {
+      setFeitos((atual) => atual.filter((item) => item !== id))
+      setErro(e instanceof Error ? e.message : 'Não consegui gravar a entrada.')
+    } finally {
+      setOcupado(null)
+    }
+  }
+
+  if (grupos.length === 0 && entradasAbertas.length === 0) return <p>Tudo classificado.</p>
 
   return (
     <div className="stack">
+      {erro && <p className="valor-estouro">{erro}</p>}
       {grupos.map(([chave, linhas]) => (
         <article key={chave} className="panel">
           <strong>{nomeVisivel(linhas[0], estabelecimentos)}</strong>
           <p className="muted small">
             {linhas.length} · {formatBRL(linhas.reduce((total, linha) => total + linha.valor, 0))}
+            {ocupado === chave ? ' · salvando…' : ''}
           </p>
           <input
             placeholder="Apelido"
             value={apelidos[chave] ?? ''}
             onChange={(e) => setApelidos((atual) => ({ ...atual, [chave]: e.target.value }))}
+            disabled={ocupado === chave}
           />
           <EscolherCategoria
             categorias={categorias}
-            onEscolher={(categoriaId) => void classificarEstabelecimento(chave, categoriaId, apelidos[chave])}
+            desabilitado={ocupado !== null}
+            onEscolher={(categoriaId) => void escolher(chave, categoriaId)}
           />
         </article>
       ))}
-      {entradas.map((linha) => (
+      {entradasAbertas.map((linha) => (
         <article key={linha.id} className="panel">
           <strong>{nomeVisivel(linha, estabelecimentos)}</strong>
           <p>{formatBRL(linha.valor)} entrou. Renda ou reembolso?</p>
-          <button type="button" className="secondary-btn" onClick={() => void confirmarEntrada(linha.id, 'cat-renda')}>
+          <button type="button" className="secondary-btn" disabled={ocupado !== null} onClick={() => void confirmar(linha.id, 'cat-renda')}>
             Renda
           </button>
-          <button type="button" className="secondary-btn" onClick={() => setReembolso(linha.id)}>
+          <button type="button" className="secondary-btn" disabled={ocupado !== null} onClick={() => setReembolso(linha.id)}>
             Reembolso
           </button>
           {reembolso === linha.id && (
-            <EscolherCategoria categorias={categorias} onEscolher={(categoriaId) => void confirmarEntrada(linha.id, categoriaId)} />
+            <EscolherCategoria
+              categorias={categorias}
+              desabilitado={ocupado !== null}
+              onEscolher={(categoriaId) => void confirmar(linha.id, categoriaId)}
+            />
           )}
         </article>
       ))}

@@ -132,43 +132,61 @@ export async function gravarCsv(texto: string, arquivo: string): Promise<ResumoG
 }
 
 export async function classificarEstabelecimento(chave: string, categoriaId: string, apelido?: string) {
-  const estab = await db.estabelecimentos.where('chaveNormalizada').equals(chave).first()
-  if (estab) {
-    await db.estabelecimentos.update(estab.id, {
+  if (!chave || !categoriaId) throw new Error('Faltou estabelecimento ou categoria.')
+
+  await db.transaction('rw', db.estabelecimentos, db.lancamentos, db.compromissos, async () => {
+    const estab = await db.estabelecimentos.where('chaveNormalizada').equals(chave).first()
+    const apelidoLimpo = apelido?.trim()
+
+    if (estab) {
+      await db.estabelecimentos.update(estab.id, {
+        categoriaId,
+        ...(apelidoLimpo ? { apelido: apelidoLimpo } : {}),
+      })
+    } else {
+      await db.estabelecimentos.put({
+        id: novoId(),
+        chaveNormalizada: chave,
+        textoOriginal: chave,
+        apelido: apelidoLimpo ?? '',
+        nota: '',
+        categoriaId,
+      })
+    }
+
+    // Um modify só: no iPhone vários update em paralelo travam o IndexedDB.
+    await db.lancamentos.where('estabelecimentoChave').equals(chave).modify({
       categoriaId,
-      ...(apelido == null ? {} : { apelido }),
+      confirmarEntrada: false,
     })
-  } else {
-    await db.estabelecimentos.add({
-      id: novoId(),
-      chaveNormalizada: chave,
-      textoOriginal: chave,
-      apelido: apelido ?? '',
-      nota: '',
-      categoriaId,
-    })
-  }
-  const linhas = await db.lancamentos.where('estabelecimentoChave').equals(chave).toArray()
-  await Promise.all(
-    linhas.map((linha) => db.lancamentos.update(linha.id, { categoriaId, confirmarEntrada: false })),
-  )
-  const compromissos = new Set(linhas.map((linha) => linha.compromissoId).filter((id): id is string => !!id))
-  for (const id of compromissos) {
-    const compromisso = await db.compromissos.get(id)
-    if (!compromisso) continue
-    await db.compromissos.update(id, {
-      categoriaId: compromisso.categoriaId ?? categoriaId,
-      ...(apelido && !compromisso.apelido ? { apelido } : {}),
-    })
-  }
+
+    const vinculos = await db.lancamentos
+      .where('estabelecimentoChave')
+      .equals(chave)
+      .filter((linha) => !!linha.compromissoId)
+      .toArray()
+    const ids = new Set(vinculos.map((linha) => linha.compromissoId).filter((id): id is string => !!id))
+    for (const id of ids) {
+      const compromisso = await db.compromissos.get(id)
+      if (!compromisso) continue
+      await db.compromissos.update(id, {
+        categoriaId: compromisso.categoriaId ?? categoriaId,
+        ...(apelidoLimpo && !compromisso.apelido ? { apelido: apelidoLimpo } : {}),
+      })
+    }
+  })
 }
 
 export async function confirmarEntrada(id: string, categoriaId: string) {
-  const linha = await db.lancamentos.get(id)
-  if (!linha) return
-  await db.lancamentos.update(id, { categoriaId, confirmarEntrada: false, sinal: 'entrada' })
-  const estab = await db.estabelecimentos.where('chaveNormalizada').equals(linha.estabelecimentoChave).first()
-  if (estab && !estab.categoriaId) await db.estabelecimentos.update(estab.id, { categoriaId })
+  if (!id || !categoriaId) throw new Error('Faltou lançamento ou categoria.')
+
+  await db.transaction('rw', db.lancamentos, db.estabelecimentos, async () => {
+    const linha = await db.lancamentos.get(id)
+    if (!linha) return
+    await db.lancamentos.update(id, { categoriaId, confirmarEntrada: false, sinal: 'entrada' })
+    const estab = await db.estabelecimentos.where('chaveNormalizada').equals(linha.estabelecimentoChave).first()
+    if (estab) await db.estabelecimentos.update(estab.id, { categoriaId })
+  })
 }
 
 export async function salvarManual(entrada: {
