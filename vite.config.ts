@@ -13,7 +13,7 @@ export default defineConfig({
       manifest: {
         name: 'Sobra — controle de gastos',
         short_name: 'Sobra',
-        description: 'Quanto ainda dá para gastar este mês, em tempo real.',
+        description: 'Revisão semanal dos gastos do casal.',
         theme_color: '#3b3fb6',
         background_color: '#eceafd',
         display: 'standalone',
@@ -33,7 +33,7 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/\.netlify\//],
         // Força o SW a invalidar caches antigos que deixavam o layout “zoomed”.
-        cacheId: 'sobra-2026-08-10-pending2',
+        cacheId: 'sobra-2026-10-22-revisao',
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,

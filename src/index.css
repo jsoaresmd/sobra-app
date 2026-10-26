@@ -1915,3 +1915,169 @@ textarea:focus {
   font-weight: 800;
   letter-spacing: -0.03em;
 }
+
+/* ---------- Revisão semanal ---------- */
+.full {
+  width: 100%;
+}
+
+.centro {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+a.primary-btn {
+  text-decoration: none;
+}
+
+.aviso {
+  display: block;
+  background: #fff6e8;
+  color: var(--warn);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-weight: 700;
+}
+
+.trilha {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.trilha > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.tom-ok {
+  background: var(--ok);
+}
+
+.tom-alerta {
+  background: var(--warn-2);
+}
+
+.tom-estouro {
+  background: var(--danger);
+}
+
+.valor-ok {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.valor-alerta {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.valor-estouro {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.placar {
+  gap: 8px;
+}
+
+.placar-item {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 12px;
+  color: inherit;
+  box-shadow: var(--shadow-sm);
+}
+
+button.placar-item {
+  cursor: pointer;
+}
+
+.placar-emoji {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.placar-miolo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cat-btn {
+  min-height: 52px;
+  text-align: left;
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.chip {
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chip.ativo {
+  background: #e6e6fb;
+  color: var(--primary);
+  border-color: transparent;
+}
+
+.colunas {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 120px;
+}
+
+.coluna {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.coluna span {
+  display: block;
+  width: 100%;
+  background: linear-gradient(180deg, var(--primary-2), var(--primary));
+  border-radius: 6px 6px 2px 2px;
+  min-height: 4px;
+}
+
+.ghost-linha {
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  font-weight: 700;
+}
+

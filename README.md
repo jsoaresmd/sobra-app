@@ -1,10 +1,31 @@
 # Sobra
 
-App de controle de gastos que responde a pergunta que os outros não respondem: **quanto ainda dá para gastar até o fim do mês?**
+Revisão de sábado do casal. Uma vez por semana sobe o CSV do cartão e o da conta do Nubank, classifica o que ainda não tem categoria e vê a semana contra os tetos e as metas.
 
-Funciona como PWA — instala na tela inicial do Android. Os dados ficam no aparelho (IndexedDB). O fluxo principal é **automático via Open Finance** (Pluggy / Meu Pluggy): o app puxa débito e crédito e encaixa nos envelopes. Lançamento manual existe só para corrigir.
+Os dados ficam só neste celular. Não tem login, não tem servidor e não mostra fatura, limite nem saldo — o app do Nubank já faz isso.
 
-## Como rodar
+## Como usar
+
+1. Abra **Revisar** e suba os dois CSVs (pode ser junto).
+2. Classifique só o que está sem categoria. A escolha vale para o mesmo estabelecimento nas próximas vezes. Dá para pôr um apelido.
+3. Lance o que não passa no Nubank: dinheiro vivo, entrada em dinheiro, aporte.
+4. Veja o placar, as metas, o comparativo e os cortes.
+5. Escolha as metas da próxima semana e feche. Exporte um backup no fim.
+
+A semana vai de domingo a sábado. Parcela e boleto no crédito não entram no teto da semana: vão para **Compromissos**, na tela Mês.
+
+O teto da semana é o teto do mês × 12 ÷ 52. O que sobra não passa para a semana seguinte. O que estoura desconta, e o saldo negativo continua nas semanas seguintes até zerar.
+
+## Telas
+
+- **Semana** — placar da semana atual. Toque numa categoria para ver os lançamentos e trocar a categoria.
+- **Revisar** — o assistente e o histórico. Uma revisão fechada pode ser reaberta.
+- **Mês** — renda (fixa + extras) − compromissos − gasto semanal − outras contas do mês. Compara com a meta de guardar e mostra o que foi para investimento. Também ficam os compromissos, as dívidas e quando cada parcelamento acaba.
+- **Ajustes** — categorias e tetos, estabelecimentos (apelido, nota, regra), metas, renda, nomes do titular, backup e apagar tudo.
+
+Lançamento importado não muda valor nem data. Lançamento manual pode ser editado e apagado.
+
+## No computador
 
 ```bash
 npm install
@@ -13,135 +34,10 @@ npm run dev
 
 Abra `http://localhost:5173`.
 
-Para testar as funções Open Finance localmente (precisa das chaves Pluggy):
+- `npm test` — parsers, deduplicação, teto e metas
+- `npm run lint`
+- `npm run build` — sai em `dist/`
 
-```bash
-npx netlify dev
-```
+Os CSVs de exemplo usados nos testes ficam em `nu-extratos/` (essa pasta não vai para o git).
 
-Outros comandos:
-
-- `npm run build` — gera a versão de produção em `dist/`
-- `npm run preview` — serve o `dist/` para testar o PWA
-- `npm run lint` — roda o oxlint
-- `npm run icons` — regenera os ícones a partir de `public/favicon.svg`
-
-## Publicar e instalar no celular
-
-O deploy é no Netlify: `npm run build` e publique a pasta `dist/`. O `netlify.toml` já traz SPA + `/api/*` → funções serverless.
-
-No Netlify, em **Site settings → Environment variables**, configure:
-
-- `PLUGGY_CLIENT_ID`
-- `PLUGGY_CLIENT_SECRET`
-
-(nunca com prefixo `VITE_` — a secret fica só no servidor). Há um `.env.example` na raiz.
-
-No celular, abra o endereço no Chrome e use **Adicionar à tela inicial**.
-
-## Open Finance (caminho principal)
-
-1. Conta no [Meu Pluggy](https://meu.pluggy.ai) e conexão com o Nubank
-2. App em [dashboard.pluggy.ai](https://dashboard.pluggy.ai) — anote Client ID e Secret
-3. Variáveis no Netlify (acima) e conector **MeuPluggy** habilitado no dashboard
-4. No app: **Ajustes → Bancos** (ou o botão na tela Hoje) → Conectar → Sincronizar
-
-Crédito e débito viram contas locais; compras novas viram lançamentos e descontam o envelope quando já houver etiqueta aprendida. Sem etiqueta, aparecem no extrato para você marcar uma vez — daí em diante o estabelecimento cai sozinho.
-
-Enquanto as chaves não estiverem no Netlify, use **Ajustes → Importar fatura Nubank** (CSV/PDF) como ponte: mesma lógica de etiquetas.
-
-## O problema que o app resolve
-
-Com quase tudo no cartão, o saldo do banco mente. Uma compra feita hoje só vira dinheiro de verdade na data do vencimento, às vezes 37 dias depois. O envelope de papel funcionava porque o dinheiro saía na hora.
-
-Por isso o app tem dois números no topo da tela:
-
-**Dinheiro de verdade** — o que sobra em conta depois de tirar o que já tem dono até a próxima renda:
-
-```
-Sobra real = saldo em conta
-           − fatura do cartão a pagar agora (aberta até o fechamento; depois só a fechada)
-           − contas fixas em débito ainda não pagas
-```
-
-Não soma a fatura do ciclo seguinte nem parcelas futuras — só o cartão que cai neste mês.
-**Teto da fatura** — quanto a fatura em formação pode custar sem apertar o mês seguinte:
-
-```
-Teto = renda − contas pagas fora do cartão (dízimo, débito) − o que quer guardar
-```
-
-O termômetro mostra quanto ainda cabe na fatura, quantos dias faltam para ela fechar e quanto dá para gastar por dia até lá. É o freio que falta quando tudo passa no crédito.
-
-Para não precisar cadastrar meses de histórico, em Ajustes → Contas dá para informar o valor da fatura conferido no app do banco. Ele vira o ponto de partida e só o que for lançado depois soma por cima.
-
-## Importar fatura Nubank (ponte)
-
-Em **Ajustes → Importar fatura Nubank**, envie o **CSV** (recomendado) ou o PDF da fatura. Útil até o Open Finance estar ligado, ou para um mês pontual.
-
-Ao confirmar, duas coisas acontecem:
-
-1. Os lançamentos entram no extrato e descontam do envelope
-2. O estabelecimento fica etiquetado — na próxima fatura, “Mp *Patyy” ou “Gigante Atacadista” já caem no lugar certo
-
-O botão **aplicar iguais** etiqueta de uma vez todas as ocorrências do mesmo estabelecimento naquela fatura.
-
-Os PDFs em `nu-extratos/` ficam só na sua máquina (a pasta está no `.gitignore`).
-
-## Envelopes
-
-São o equivalente digital dos envelopes de papel.
-
-- **Fixo** — valor certo (dízimo, internet, financiamento). No fim do ciclo o que sobrou zera.
-- **Variável** — mercado, lazer, pets. O que sobrar no fim do ciclo vai para o envelope de **Investimentos**.
-- **Investimento** — só recebe; acumula.
-
-Fluxo do mês: defina os valores → toque em **Separar o dinheiro do mês** → cada gasto sai do envelope correspondente → se precisar, transfira entre envelopes.
-
-## Como o cálculo funciona
-
-O ciclo pode ser o mês civil ou começar no dia do salário (ajustável).
-
-```
-Teto do período  = renda mensal + entradas extras − quanto você quer guardar
-Comprometido     = o que já saiu + o que ainda vai cair
-Disponível       = teto − comprometido
-Por dia          = disponível ÷ dias restantes
-```
-
-"O que ainda vai cair" é o que diferencia o app: junta as contas fixas do mês que ainda não foram pagas com as parcelas e lançamentos agendados que caem dentro do período.
-
-A projeção separa o que é fixo do que é variável. Contas fixas e parcelas entram pelo valor cheio; o gasto do dia a dia é extrapolado pelo ritmo atual:
-
-```
-Projeção = fixos + parcelas + (gasto livre ÷ dias decorridos) × dias do período
-```
-
-Se a projeção passa do teto, o app avisa que o mês vai estourar antes que isso aconteça.
-
-## Cartão de crédito
-
-Cada cartão tem dia de fechamento e de vencimento, então o app sabe em qual fatura cada compra cai e mostra a fatura aberta, quando ela fecha e quanto já está comprometido nas próximas.
-
-Compras parceladas viram vários lançamentos, um por mês, para que as parcelas futuras apareçam em "ainda vai cair".
-
-## Backup
-
-Em Ajustes → Backup dá para exportar um arquivo `.json` com tudo e restaurar depois. Como os dados vivem só no aparelho, vale exportar de tempos em tempos e guardar no Drive.
-
-## Próximos passos
-
-- Notificações quando o ritmo de gasto passar do limite
-- Segundo aparelho para a esposa, com junção dos dois orçamentos
-- Afinar direção crédito/débito e categorias da Pluggy após a primeira sync real
-
-## Estrutura
-
-```
-src/
-  lib/       modelo (Dexie), orçamento, faturas, Pluggy sync, backup
-  contexts/  estado global
-  components/casca do app
-  pages/     Hoje, Envelopes, Extrato, Lançar, Ajustes, Bancos
-netlify/functions/  token + sync Pluggy (secrets só no servidor)
-```
+O deploy é no Netlify, pela branch `main`. No celular, abra o site no Chrome e use **Adicionar à tela inicial**.

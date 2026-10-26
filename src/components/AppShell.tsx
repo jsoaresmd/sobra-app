@@ -1,5 +1,5 @@
 import { useEffect, useMemo, type ReactElement } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 type TabDef = {
   to: string
@@ -8,27 +8,24 @@ type TabDef = {
   end?: boolean
 }
 
-const HojeIcon = (
+const SemanaIcon = (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path d="M12 21a8 8 0 1 0-8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     <path d="M12 7.5V12l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
 
-const EnvelopeIcon = (
+const RevisarIcon = (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path
-      d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-9Z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    />
-    <path d="M4 8l8 5 8-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M8 4h8l2 3v13H6V7l2-3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 )
 
-const ExtratoIcon = (
+const MesIcon = (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M5 5h14M5 12h14M5 19h9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
+    <path d="M4 10h16M8 3.5V6M16 3.5V6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 )
 
@@ -45,22 +42,21 @@ const AjustesIcon = (
 )
 
 const TABS: TabDef[] = [
-  { to: '/', label: 'Hoje', icon: HojeIcon, end: true },
-  { to: '/envelopes', label: 'Envelopes', icon: EnvelopeIcon },
-  { to: '/extrato', label: 'Extrato', icon: ExtratoIcon },
+  { to: '/', label: 'Semana', icon: SemanaIcon, end: true },
+  { to: '/revisar', label: 'Revisar', icon: RevisarIcon },
+  { to: '/mes', label: 'Mês', icon: MesIcon },
   { to: '/ajustes', label: 'Ajustes', icon: AjustesIcon },
 ]
 
 function pageFromPath(pathname: string) {
-  if (pathname.startsWith('/envelopes') || pathname.startsWith('/mes')) return 'envelopes'
-  if (pathname.startsWith('/extrato')) return 'extrato'
+  if (pathname.startsWith('/revisar')) return 'revisar'
+  if (pathname.startsWith('/mes')) return 'mes'
   if (pathname.startsWith('/ajustes')) return 'ajustes'
-  return 'hoje'
+  return 'semana'
 }
 
 export function AppShell() {
   const location = useLocation()
-  const navigate = useNavigate()
   const page = useMemo(() => pageFromPath(location.pathname), [location.pathname])
 
   useEffect(() => {
@@ -73,26 +69,13 @@ export function AppShell() {
   useEffect(() => {
     const main = document.querySelector('.page')
     if (main instanceof HTMLElement) main.scrollTop = 0
-  }, [location.pathname])
+  }, [location.pathname, location.search])
 
   return (
     <div className="app-shell" data-page={page}>
       <main className="page">
         <Outlet />
       </main>
-
-      <button
-        type="button"
-        className="fab"
-        onClick={() => navigate('/lancar')}
-        aria-label="Lançar correção manual"
-        title="Correção manual"
-      >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-        </svg>
-      </button>
-
       <nav className="tabbar" aria-label="Navegação principal">
         {TABS.map((tab) => (
           <NavLink key={tab.to} to={tab.to} end={tab.end}>
