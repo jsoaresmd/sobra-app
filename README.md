@@ -12,8 +12,10 @@ Os dados ficam no Supabase (Postgres + Auth). Uma conta (e-mail/senha) nos dois 
 
 ```bash
 VITE_SUPABASE_URL=https://bnzeknsziulczlnqdzpd.supabase.co
-VITE_SUPABASE_ANON_KEY=sua-chave-anon
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
+
+No front só a **publishable**. A **secret** não vai no Vite nem no Netlify client.
 
 No Netlify, as mesmas variáveis em **Site settings → Environment variables**.
 

@@ -6,13 +6,14 @@ function lerEnv(chave: string) {
 }
 
 const url = lerEnv('VITE_SUPABASE_URL')
-const anon = lerEnv('VITE_SUPABASE_ANON_KEY')
+/** Prefer publishable (sb_publishable_…); anon JWT legado ainda funciona. */
+const chave = lerEnv('VITE_SUPABASE_PUBLISHABLE_KEY') || lerEnv('VITE_SUPABASE_ANON_KEY')
 
-if (!url || !anon) {
-  console.warn('Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env')
+if (!url || !chave) {
+  console.warn('Defina VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no .env')
 }
 
-export const supabase: SupabaseClient = createClient(url || 'http://localhost', anon || 'public-anon-key', {
+export const supabase: SupabaseClient = createClient(url || 'http://localhost', chave || 'public-anon-key', {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
