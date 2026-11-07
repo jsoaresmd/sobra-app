@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CampoMoeda } from '../components/CampoMoeda'
 import { useAuth } from '../contexts/AuthContext'
 import { useDados } from '../contexts/DadosContext'
@@ -66,28 +66,17 @@ function Inicio({ onAbrir }: { onAbrir: (secao: Secao) => void }) {
         <h2>Mês</h2>
         <label>
           Renda mensal fixa
-          <CampoMoeda valor={config.renda} onChange={(renda) => salvar({ renda })} />
+          <CampoMoeda defer valor={config.renda} onChange={(renda) => salvar({ renda })} />
         </label>
         <label>
           Meta de guardar (padrão)
-          <CampoMoeda valor={config.metaGuardarMes} onChange={(metaGuardarMes) => salvar({ metaGuardarMes })} />
+          <CampoMoeda defer valor={config.metaGuardarMes} onChange={(metaGuardarMes) => salvar({ metaGuardarMes })} />
         </label>
         <p className="muted small">Usada ao criar o plano de um mês novo no modo Guardar. O plano do mês se edita em Mês.</p>
-        <label>
-          Nomes do titular
-          <textarea
-            rows={3}
-            value={config.nomesTitular.join('\n')}
-            onChange={(e) =>
-              salvar({
-                nomesTitular: e.target.value
-                  .split('\n')
-                  .map((linha) => linha.trim())
-                  .filter(Boolean),
-              })
-            }
-          />
-        </label>
+        <NomesTitular
+          nomes={config.nomesTitular}
+          onSalvar={(nomesTitular) => salvar({ nomesTitular })}
+        />
         <p className="muted small">Um nome por linha. Transferência com esses nomes é ignorada.</p>
       </section>
       <section className="panel stack">
@@ -158,6 +147,29 @@ function Inicio({ onAbrir }: { onAbrir: (secao: Secao) => void }) {
   )
 }
 
+function NomesTitular({ nomes, onSalvar }: { nomes: string[]; onSalvar: (nomes: string[]) => void }) {
+  const [texto, setTexto] = useState(nomes.join('\n'))
+  useEffect(() => setTexto(nomes.join('\n')), [nomes])
+  return (
+    <label>
+      Nomes do titular
+      <textarea
+        rows={3}
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        onBlur={() =>
+          onSalvar(
+            texto
+              .split('\n')
+              .map((linha) => linha.trim())
+              .filter(Boolean),
+          )
+        }
+      />
+    </label>
+  )
+}
+
 function Categorias({ onVoltar }: { onVoltar: () => void }) {
   const { categorias } = useDados()
   const [nome, setNome] = useState('')
@@ -213,6 +225,10 @@ function Categorias({ onVoltar }: { onVoltar: () => void }) {
 
 function CategoriaItem({ categoria }: { categoria: Categoria }) {
   const protegida = categoria.id === 'cat-ignorar' || categoria.id === 'cat-renda'
+  const [nome, setNome] = useState(categoria.nome)
+  const [emoji, setEmoji] = useState(categoria.emoji)
+  useEffect(() => setNome(categoria.nome), [categoria.nome])
+  useEffect(() => setEmoji(categoria.emoji), [categoria.emoji])
   return (
     <li className="panel">
       <div className="row-between">
@@ -222,18 +238,25 @@ function CategoriaItem({ categoria }: { categoria: Categoria }) {
         {categoria.arquivada && <span className="muted small">arquivada</span>}
       </div>
       <input
-        value={categoria.nome}
-        onChange={(e) => void updateCategoria(categoria.id, { nome: e.target.value })}
+        value={nome}
+        onChange={(e) => setNome(e.target.value)}
+        onBlur={() => {
+          if (nome !== categoria.nome) void updateCategoria(categoria.id, { nome })
+        }}
       />
       <input
-        value={categoria.emoji}
+        value={emoji}
         maxLength={4}
-        onChange={(e) => void updateCategoria(categoria.id, { emoji: e.target.value })}
+        onChange={(e) => setEmoji(e.target.value)}
+        onBlur={() => {
+          if (emoji !== categoria.emoji) void updateCategoria(categoria.id, { emoji })
+        }}
       />
       {categoria.tipo === 'semanal' && (
         <label>
           Teto do mês
           <CampoMoeda
+            defer
             valor={categoria.tetoMensal}
             onChange={(tetoMensal) => void updateCategoria(categoria.id, { tetoMensal })}
           />
@@ -277,15 +300,15 @@ function Lojas({ onVoltar }: { onVoltar: () => void }) {
         {lista.map((loja) => (
           <li key={loja.id} className="panel">
             <p className="muted small">{loja.textoOriginal}</p>
-            <input
+            <CampoTextoSalvo
               placeholder="Apelido"
-              value={loja.apelido}
-              onChange={(e) => void updateEstabelecimento(loja.id, { apelido: e.target.value })}
+              valor={loja.apelido}
+              onSalvar={(apelido) => void updateEstabelecimento(loja.id, { apelido })}
             />
-            <input
+            <CampoTextoSalvo
               placeholder="Nota"
-              value={loja.nota}
-              onChange={(e) => void updateEstabelecimento(loja.id, { nota: e.target.value })}
+              valor={loja.nota}
+              onSalvar={(nota) => void updateEstabelecimento(loja.id, { nota })}
             />
             <select
               value={loja.categoriaId ?? ''}
@@ -390,6 +413,29 @@ function Metas({ onVoltar }: { onVoltar: () => void }) {
         </button>
       </form>
     </div>
+  )
+}
+
+function CampoTextoSalvo({
+  valor,
+  onSalvar,
+  placeholder,
+}: {
+  valor: string
+  onSalvar: (valor: string) => void
+  placeholder?: string
+}) {
+  const [local, setLocal] = useState(valor)
+  useEffect(() => setLocal(valor), [valor])
+  return (
+    <input
+      placeholder={placeholder}
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => {
+        if (local !== valor) onSalvar(local)
+      }}
+    />
   )
 }
 

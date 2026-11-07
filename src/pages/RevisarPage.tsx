@@ -597,7 +597,11 @@ function Proxima({
       {semanais.map((categoria) => (
         <label key={categoria.id}>
           {categoria.emoji} {categoria.nome}
-          <CampoMoeda valor={categoria.tetoMensal} onChange={(tetoMensal) => void updateCategoria(categoria.id, { tetoMensal })} />
+          <CampoMoeda
+            defer
+            valor={categoria.tetoMensal}
+            onChange={(tetoMensal) => void updateCategoria(categoria.id, { tetoMensal })}
+          />
         </label>
       ))}
       <label>

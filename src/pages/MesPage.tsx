@@ -80,6 +80,7 @@ export function MesPage() {
             <label>
               Teto no crédito este mês
               <CampoMoeda
+                defer
                 valor={plano.tetoCredito}
                 onChange={(tetoCredito) => void salvarPlanoMes({ mes, tetoCredito })}
               />
@@ -87,6 +88,7 @@ export function MesPage() {
             <label>
               Fatura que o salário paga (opcional)
               <CampoMoeda
+                defer
                 valor={plano.faturaAPagar ?? 0}
                 onChange={(faturaAPagar) => void salvarPlanoMes({ mes, faturaAPagar })}
               />
@@ -96,20 +98,13 @@ export function MesPage() {
           <label>
             Meta de guardar
             <CampoMoeda
+              defer
               valor={plano.metaGuardar}
               onChange={(metaGuardar) => void salvarPlanoMes({ mes, metaGuardar })}
             />
           </label>
         )}
-        <label>
-          Nota
-          <textarea
-            rows={2}
-            value={plano.notas}
-            onChange={(e) => void salvarPlanoMes({ mes, notas: e.target.value })}
-            placeholder="Combinado do mês"
-          />
-        </label>
+        <NotaPlano mes={mes} notas={plano.notas} />
       </section>
 
       {resumo.modo === 'sair-atraso' ? (
@@ -190,6 +185,25 @@ function deslocar(mes: string, delta: number) {
 
 function pago(id: string, mes: string, lancamentos: { compromissoId?: string | null; data: string; sinal: string }[]) {
   return lancamentos.some((linha) => linha.compromissoId === id && linha.data.startsWith(mes) && linha.sinal === 'saida')
+}
+
+function NotaPlano({ mes, notas }: { mes: string; notas: string }) {
+  const [local, setLocal] = useState(notas)
+  useEffect(() => setLocal(notas), [notas, mes])
+  return (
+    <label>
+      Nota
+      <textarea
+        rows={2}
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => {
+          if (local !== notas) void salvarPlanoMes({ mes, notas: local })
+        }}
+        placeholder="Combinado do mês"
+      />
+    </label>
+  )
 }
 
 function Linha({ nome, valor, detalhe, destaque }: { nome: string; valor: number; detalhe?: string; destaque?: boolean }) {
