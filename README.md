@@ -2,28 +2,36 @@
 
 Revisão de sábado do casal. Uma vez por semana sobe o CSV do cartão e o da conta do Nubank, classifica o que ainda não tem categoria e vê a semana contra os tetos e as metas.
 
-Os dados ficam só neste celular. Não tem login, não tem servidor e não mostra fatura, limite nem saldo — o app do Nubank já faz isso.
+Os dados ficam no Supabase (Postgres + Auth). Uma conta (e-mail/senha) nos dois celulares. Sem login o app não abre.
+
+## Configuração
+
+1. Crie o usuário no Supabase Auth (e-mail/senha) — uma conta para o casal.
+2. Aplique a migração em `supabase/migrations/20261107120000_sobra_schema.sql` no SQL Editor do projeto `bnzeknsziulczlnqdzpd` (ou `supabase db push` com o projeto linkado).
+3. Copie `.env.example` para `.env` e preencha:
+
+```bash
+VITE_SUPABASE_URL=https://bnzeknsziulczlnqdzpd.supabase.co
+VITE_SUPABASE_ANON_KEY=sua-chave-anon
+```
+
+No Netlify, as mesmas variáveis em **Site settings → Environment variables**.
 
 ## Como usar
 
-1. Abra **Revisar** e suba os dois CSVs (pode ser junto).
-2. Classifique só o que está sem categoria. A escolha vale para o mesmo estabelecimento nas próximas vezes. Dá para pôr um apelido.
-3. Lance o que não passa no Nubank: dinheiro vivo, entrada em dinheiro, aporte.
-4. Veja o placar, as metas, o comparativo e os cortes.
-5. Escolha as metas da próxima semana e feche. Exporte um backup no fim.
+1. Entre com e-mail e senha.
+2. Se ainda houver dados só no celular (versão antiga), em **Ajustes** use **Trazer dados deste celular**.
+3. Abra **Revisar** e suba os dois CSVs.
+4. Classifique o que está sem categoria, lance o que não passa no Nubank, feche a semana.
 
 A semana vai de domingo a sábado. Parcela e boleto no crédito não entram no teto da semana: vão para **Compromissos**, na tela Mês.
 
-O teto da semana é o teto do mês × 12 ÷ 52. O que sobra não passa para a semana seguinte. O que estoura desconta, e o saldo negativo continua nas semanas seguintes até zerar.
-
 ## Telas
 
-- **Semana** — placar da semana atual. Toque numa categoria para ver os lançamentos e trocar a categoria.
-- **Revisar** — o assistente e o histórico. Uma revisão fechada pode ser reaberta.
-- **Mês** — renda (fixa + extras) − compromissos − gasto semanal − outras contas do mês. Compara com a meta de guardar e mostra o que foi para investimento. Também ficam os compromissos, as dívidas e quando cada parcelamento acaba.
-- **Ajustes** — categorias e tetos, estabelecimentos (apelido, nota, regra), metas, renda, nomes do titular, backup e apagar tudo.
-
-Lançamento importado não muda valor nem data. Lançamento manual pode ser editado e apagado.
+- **Semana** — placar da semana atual.
+- **Revisar** — assistente e histórico.
+- **Mês** — plano (guardar / sair do atraso), renda, compromissos e dívidas.
+- **Ajustes** — categorias, estabelecimentos, metas, conta, backup e importação do celular.
 
 ## No computador
 
@@ -38,6 +46,4 @@ Abra `http://localhost:5173`.
 - `npm run lint`
 - `npm run build` — sai em `dist/`
 
-Os CSVs de exemplo usados nos testes ficam em `nu-extratos/` (essa pasta não vai para o git).
-
-O deploy é no Netlify, pela branch `main`. No celular, abra o site no Chrome e use **Adicionar à tela inicial**.
+Deploy no Netlify pela branch `main` do repo `jsoaresmd/sobra-app`. No celular, abra o site no Chrome e use **Adicionar à tela inicial**.

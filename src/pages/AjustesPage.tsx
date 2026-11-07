@@ -1,8 +1,18 @@
 import { useMemo, useRef, useState } from 'react'
 import { CampoMoeda } from '../components/CampoMoeda'
+import { useAuth } from '../contexts/AuthContext'
 import { useDados } from '../contexts/DadosContext'
 import { apagarTudo, baixarBackup, baixarBackupLegado, restaurarBackup } from '../lib/backup'
-import { db, novoId } from '../lib/db'
+import { novoId } from '../lib/ids'
+import { trazerDadosDesteCelular } from '../lib/importarCelular'
+import {
+  deleteMetaModelo,
+  insertCategoria,
+  insertMetaModelo,
+  updateCategoria,
+  updateEstabelecimento,
+  upsertConfig,
+} from '../lib/repo'
 import type { Categoria, Config, MetaModelo, TipoCategoria, TipoMeta } from '../lib/types'
 
 type Secao = 'inicio' | 'categorias' | 'estabelecimentos' | 'metas'
@@ -16,14 +26,16 @@ export function AjustesPage() {
 }
 
 function Inicio({ onAbrir }: { onAbrir: (secao: Secao) => void }) {
-  const { config, temBackupLegado } = useDados()
+  const { config, temBackupLegado, temDadosLocais, recarregar } = useDados()
+  const { sair, user } = useAuth()
   const inputArquivo = useRef<HTMLInputElement>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [subindo, setSubindo] = useState(false)
   if (!config) return null
 
   const salvar = (mudancas: Partial<Config>) => {
-    void db.config.update('app', mudancas)
+    void upsertConfig({ ...config, ...mudancas })
   }
 
   return (
@@ -43,6 +55,13 @@ function Inicio({ onAbrir }: { onAbrir: (secao: Secao) => void }) {
           Metas
         </button>
       </nav>
+      <section className="panel stack">
+        <h2>Conta</h2>
+        <p className="muted small">{user?.email}</p>
+        <button type="button" className="secondary-btn" onClick={() => void sair()}>
+          Sair
+        </button>
+      </section>
       <section className="panel stack">
         <h2>Mês</h2>
         <label>
@@ -73,6 +92,32 @@ function Inicio({ onAbrir }: { onAbrir: (secao: Secao) => void }) {
       </section>
       <section className="panel stack">
         <h2>Backup</h2>
+        {temDadosLocais && (
+          <button
+            type="button"
+            className="primary-btn"
+            disabled={subindo}
+            onClick={() => {
+              setErro(null)
+              setAviso(null)
+              setSubindo(true)
+              void trazerDadosDesteCelular()
+                .then(async (resumo) => {
+                  await recarregar()
+                  setAviso(
+                    `Subi ${resumo.lancamentos} lançamentos, ${resumo.estabelecimentos} estabelecimentos e o restante deste celular.`,
+                  )
+                })
+                .catch((e: unknown) => setErro(e instanceof Error ? e.message : String(e)))
+                .finally(() => setSubindo(false))
+            }}
+          >
+            {subindo ? 'Subindo…' : 'Trazer dados deste celular'}
+          </button>
+        )}
+        {temDadosLocais && (
+          <p className="muted small">Usa o IndexedDB antigo deste aparelho uma vez e grava na conta. Depois o local some.</p>
+        )}
         <button type="button" className="secondary-btn" onClick={() => void baixarBackup()}>
           Exportar dados
         </button>
@@ -103,7 +148,7 @@ function Inicio({ onAbrir }: { onAbrir: (secao: Secao) => void }) {
           type="button"
           className="danger-btn"
           onClick={() => {
-            if (confirm('Apagar todos os dados deste aparelho? Não dá para desfazer.')) void apagarTudo()
+            if (confirm('Apagar todos os dados da conta e sair? Não dá para desfazer.')) void apagarTudo()
           }}
         >
           Apagar tudo
@@ -137,7 +182,7 @@ function Categorias({ onVoltar }: { onVoltar: () => void }) {
           e.preventDefault()
           if (!nome.trim()) return
           const ordem = Math.max(0, ...categorias.map((categoria) => categoria.ordem)) + 1
-          void db.categorias.add({
+          void insertCategoria({
             id: novoId(),
             nome: nome.trim(),
             emoji: emoji || '📌',
@@ -178,19 +223,19 @@ function CategoriaItem({ categoria }: { categoria: Categoria }) {
       </div>
       <input
         value={categoria.nome}
-        onChange={(e) => void db.categorias.update(categoria.id, { nome: e.target.value })}
+        onChange={(e) => void updateCategoria(categoria.id, { nome: e.target.value })}
       />
       <input
         value={categoria.emoji}
         maxLength={4}
-        onChange={(e) => void db.categorias.update(categoria.id, { emoji: e.target.value })}
+        onChange={(e) => void updateCategoria(categoria.id, { emoji: e.target.value })}
       />
       {categoria.tipo === 'semanal' && (
         <label>
           Teto do mês
           <CampoMoeda
             valor={categoria.tetoMensal}
-            onChange={(tetoMensal) => void db.categorias.update(categoria.id, { tetoMensal })}
+            onChange={(tetoMensal) => void updateCategoria(categoria.id, { tetoMensal })}
           />
         </label>
       )}
@@ -198,7 +243,7 @@ function CategoriaItem({ categoria }: { categoria: Categoria }) {
         <button
           type="button"
           className="secondary-btn"
-          onClick={() => void db.categorias.update(categoria.id, { arquivada: !categoria.arquivada })}
+          onClick={() => void updateCategoria(categoria.id, { arquivada: !categoria.arquivada })}
         >
           {categoria.arquivada ? 'Reativar' : 'Arquivar'}
         </button>
@@ -235,17 +280,17 @@ function Lojas({ onVoltar }: { onVoltar: () => void }) {
             <input
               placeholder="Apelido"
               value={loja.apelido}
-              onChange={(e) => void db.estabelecimentos.update(loja.id, { apelido: e.target.value })}
+              onChange={(e) => void updateEstabelecimento(loja.id, { apelido: e.target.value })}
             />
             <input
               placeholder="Nota"
               value={loja.nota}
-              onChange={(e) => void db.estabelecimentos.update(loja.id, { nota: e.target.value })}
+              onChange={(e) => void updateEstabelecimento(loja.id, { nota: e.target.value })}
             />
             <select
               value={loja.categoriaId ?? ''}
               onChange={(e) =>
-                void db.estabelecimentos.update(loja.id, { categoriaId: e.target.value || null })
+                void updateEstabelecimento(loja.id, { categoriaId: e.target.value || null })
               }
             >
               <option value="">Sem regra</option>
@@ -256,7 +301,11 @@ function Lojas({ onVoltar }: { onVoltar: () => void }) {
               ))}
             </select>
             {loja.categoriaId && (
-              <button type="button" className="link-btn danger-link" onClick={() => void db.estabelecimentos.update(loja.id, { categoriaId: null })}>
+              <button
+                type="button"
+                className="link-btn danger-link"
+                onClick={() => void updateEstabelecimento(loja.id, { categoriaId: null })}
+              >
                 Apagar regra
               </button>
             )}
@@ -290,7 +339,7 @@ function Metas({ onVoltar }: { onVoltar: () => void }) {
         {metasModelo.map((modelo) => (
           <li key={modelo.id} className="panel row-between">
             <span>{modelo.nome}</span>
-            <button type="button" className="link-btn danger-link" onClick={() => void db.metasModelo.delete(modelo.id)}>
+            <button type="button" className="link-btn danger-link" onClick={() => void deleteMetaModelo(modelo.id)}>
               Apagar
             </button>
           </li>
@@ -308,7 +357,7 @@ function Metas({ onVoltar }: { onVoltar: () => void }) {
             parametros: parametros(tipo, categoriaId, valor, Number(quantidade) || 0, texto),
             ativaPorPadrao: false,
           }
-          void db.metasModelo.add(modelo)
+          void insertMetaModelo(modelo)
           setNome('')
         }}
       >

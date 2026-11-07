@@ -116,6 +116,16 @@ a {
   display: grid;
   place-items: center;
   color: var(--muted);
+  padding: 1.5rem;
+}
+
+.boot.login {
+  align-items: start;
+  padding-top: 12vh;
+}
+
+.boot.login form {
+  width: min(100%, 24rem);
 }
 
 button,

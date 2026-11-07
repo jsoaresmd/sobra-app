@@ -4,13 +4,21 @@ import { CampoMoeda } from '../components/CampoMoeda'
 import { EscolherCategoria } from '../components/EscolherCategoria'
 import { Placar } from '../components/Placar'
 import { useDados } from '../contexts/DadosContext'
-import { db, novoId } from '../lib/db'
 import { maioresCrescimentos, maioresGastos, serieOitoSemanas } from '../lib/comparar'
 import { formatarCurto, hojeISO } from '../lib/dates'
 import { nomeVisivel } from '../lib/exibir'
 import { classificarEstabelecimento, confirmarEntrada, gravarCsv, salvarManual, type ResumoGravado } from '../lib/gravar'
+import { novoId } from '../lib/ids'
 import { avaliarMeta } from '../lib/metas'
 import { formatBRL } from '../lib/money'
+import {
+  deleteMetasSemanaDaSemana,
+  deleteRevisao,
+  insertRevisao,
+  updateCategoria,
+  updateMetaSemana,
+  upsertMetasSemana,
+} from '../lib/repo'
 import { proximaSemana, rotuloSemana, semanaAnterior, semanasPendentes } from '../lib/semana'
 import { sugestoesDaSemana } from '../lib/sugestoes'
 import { placarDaSemana } from '../lib/tetos'
@@ -81,41 +89,39 @@ export function RevisarPage() {
     if (semCategoria.length || entradas.length) return
     const agora = new Date().toISOString()
     const metasDaProxima = escolhidas ?? []
-    await db.transaction('rw', [db.revisoes, db.metasSemana], async () => {
-      for (const semana of pendentes) {
-        const linhas = placarDaSemana(dados.categorias, dados.lancamentos, semana)
-        const snapshot: Record<string, number> = {
-          gasto: linhas.reduce((total, linha) => total + linha.gasto, 0),
-          teto: linhas.reduce((total, linha) => total + linha.teto, 0),
-          sobra: linhas.reduce((total, linha) => total + linha.sobra, 0),
-        }
-        for (const linha of linhas) snapshot[linha.categoriaId] = linha.gasto
-        await db.revisoes.add({
+    for (const semana of pendentes) {
+      const linhas = placarDaSemana(dados.categorias, dados.lancamentos, semana)
+      const snapshot: Record<string, number> = {
+        gasto: linhas.reduce((total, linha) => total + linha.gasto, 0),
+        teto: linhas.reduce((total, linha) => total + linha.teto, 0),
+        sobra: linhas.reduce((total, linha) => total + linha.sobra, 0),
+      }
+      for (const linha of linhas) snapshot[linha.categoriaId] = linha.gasto
+      await insertRevisao({
+        id: novoId(),
+        semanaInicio: semana,
+        fechadaEm: agora,
+        notas: nota,
+        snapshot,
+      })
+      for (const meta of dados.metasSemana.filter((item) => item.semana === semana && item.ativa)) {
+        const modelo = dados.metasModelo.find((item) => item.id === meta.modeloId)
+        if (!modelo || modelo.tipo === 'livre') continue
+        const resultado = avaliarMeta(modelo, meta, semana, dados.lancamentos)
+        await updateMetaSemana(meta.id, { cumprida: resultado.cumprida, detalhe: resultado.detalhe })
+      }
+    }
+    await deleteMetasSemanaDaSemana(seguinte)
+    if (metasDaProxima.length) {
+      await upsertMetasSemana(
+        metasDaProxima.map((modeloId) => ({
           id: novoId(),
-          semanaInicio: semana,
-          fechadaEm: agora,
-          notas: nota,
-          snapshot,
-        })
-        for (const meta of dados.metasSemana.filter((item) => item.semana === semana && item.ativa)) {
-          const modelo = dados.metasModelo.find((item) => item.id === meta.modeloId)
-          if (!modelo || modelo.tipo === 'livre') continue
-          const resultado = avaliarMeta(modelo, meta, semana, dados.lancamentos)
-          await db.metasSemana.update(meta.id, { cumprida: resultado.cumprida, detalhe: resultado.detalhe })
-        }
-      }
-      await db.metasSemana.where('semana').equals(seguinte).delete()
-      if (metasDaProxima.length) {
-        await db.metasSemana.bulkAdd(
-          metasDaProxima.map((modeloId) => ({
-            id: novoId(),
-            modeloId,
-            semana: seguinte,
-            ativa: true,
-          })),
-        )
-      }
-    })
+          modeloId,
+          semana: seguinte,
+          ativa: true,
+        })),
+      )
+    }
     setFechou(true)
   }
 
@@ -126,7 +132,7 @@ export function RevisarPage() {
           <p className="eyebrow">Revisão</p>
           <h1>Semana fechada</h1>
         </header>
-        <p>Os números ficaram salvos neste celular.</p>
+        <p>Os números ficaram salvos na conta.</p>
         <button type="button" className="primary-btn full" onClick={() => void baixarBackup()}>
           Exportar backup
         </button>
@@ -451,7 +457,7 @@ function ResultadoMetas({ semana }: { semana: string }) {
               <button
                 type="button"
                 className="secondary-btn"
-                onClick={() => void db.metasSemana.update(meta.id, { cumprida: !meta.cumprida })}
+                onClick={() => void updateMetaSemana(meta.id, { cumprida: !meta.cumprida })}
               >
                 {meta.cumprida ? 'Desmarcar' : 'Marcar como feita'}
               </button>
@@ -591,7 +597,7 @@ function Proxima({
       {semanais.map((categoria) => (
         <label key={categoria.id}>
           {categoria.emoji} {categoria.nome}
-          <CampoMoeda valor={categoria.tetoMensal} onChange={(tetoMensal) => void db.categorias.update(categoria.id, { tetoMensal })} />
+          <CampoMoeda valor={categoria.tetoMensal} onChange={(tetoMensal) => void updateCategoria(categoria.id, { tetoMensal })} />
         </label>
       ))}
       <label>
@@ -613,7 +619,7 @@ function Historico() {
           <li key={revisao.id} className="panel">
             <div className="row-between">
               <strong>{rotuloSemana(revisao.semanaInicio)}</strong>
-              <button type="button" className="link-btn" onClick={() => void db.revisoes.delete(revisao.id)}>
+              <button type="button" className="link-btn" onClick={() => void deleteRevisao(revisao.id)}>
                 Reabrir
               </button>
             </div>

@@ -4,6 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Defina também no painel do Netlify (Site settings → Environment variables):
+  # VITE_SUPABASE_URL=https://bnzeknsziulczlnqdzpd.supabase.co
+  # VITE_SUPABASE_ANON_KEY=...
 
 [[redirects]]
   from = "/*"

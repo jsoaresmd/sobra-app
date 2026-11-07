@@ -10,3 +10,5 @@ dev-dist
 nu-extratos/
 *.tsbuildinfo
 .netlify
+supabase/.temp/
+

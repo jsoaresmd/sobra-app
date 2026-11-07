@@ -1,6 +1,8 @@
-import { db } from './db'
 import { CATEGORIAS_SEED } from './categoriasSeed'
+import { db } from './db'
 import { configAPartirDoLegado, compromissosDoLegado, estabelecimentosDoLegado } from './migrarLegado'
+import { apagarTodosOsDadosRemotos, carregarTudo, substituirTudo } from './repo'
+import { supabase } from './supabase'
 import type { Config } from './types'
 
 type BackupNovo = {
@@ -30,44 +32,21 @@ function baixarJson(nome: string, dados: unknown) {
 }
 
 export async function montarBackup(): Promise<BackupNovo> {
-  const [
-    config,
-    categorias,
-    estabelecimentos,
-    lancamentos,
-    compromissos,
-    metasModelo,
-    metasSemana,
-    revisoes,
-    importacoes,
-    planosMes,
-  ] = await Promise.all([
-    db.config.get('app'),
-    db.categorias.toArray(),
-    db.estabelecimentos.toArray(),
-    db.lancamentos.toArray(),
-    db.compromissos.toArray(),
-    db.metasModelo.toArray(),
-    db.metasSemana.toArray(),
-    db.revisoes.toArray(),
-    db.importacoes.toArray(),
-    db.planosMes.toArray(),
-  ])
-
+  const pacote = await carregarTudo()
   return {
     app: 'sobra',
     versao: 20,
     exportadoEm: new Date().toISOString(),
-    config,
-    categorias,
-    estabelecimentos,
-    lancamentos,
-    compromissos,
-    metasModelo,
-    metasSemana,
-    revisoes,
-    importacoes,
-    planosMes,
+    config: pacote.config,
+    categorias: pacote.categorias,
+    estabelecimentos: pacote.estabelecimentos,
+    lancamentos: pacote.lancamentos,
+    compromissos: pacote.compromissos,
+    metasModelo: pacote.metasModelo,
+    metasSemana: pacote.metasSemana,
+    revisoes: pacote.revisoes,
+    importacoes: pacote.importacoes,
+    planosMes: pacote.planosMes,
   }
 }
 
@@ -94,18 +73,17 @@ export async function restaurarBackup(arquivo: File) {
   if (dados.app !== 'sobra') throw new Error('Este arquivo não é um backup do Sobra.')
 
   if (dados.versao === 20) {
-    await db.transaction('rw', db.tables, async () => {
-      await Promise.all(db.tables.filter((t) => t.name !== 'backupLegado').map((t) => t.clear()))
-      if (dados.config) await db.config.put(dados.config)
-      await db.categorias.bulkPut((dados.categorias ?? []) as never[])
-      await db.estabelecimentos.bulkPut((dados.estabelecimentos ?? []) as never[])
-      await db.lancamentos.bulkPut((dados.lancamentos ?? []) as never[])
-      await db.compromissos.bulkPut((dados.compromissos ?? []) as never[])
-      await db.metasModelo.bulkPut((dados.metasModelo ?? []) as never[])
-      await db.metasSemana.bulkPut((dados.metasSemana ?? []) as never[])
-      await db.revisoes.bulkPut((dados.revisoes ?? []) as never[])
-      await db.importacoes.bulkPut((dados.importacoes ?? []) as never[])
-      await db.planosMes.bulkPut(((dados as BackupNovo).planosMes ?? []) as never[])
+    await substituirTudo({
+      config: dados.config,
+      categorias: (dados.categorias ?? []) as never[],
+      estabelecimentos: (dados.estabelecimentos ?? []) as never[],
+      lancamentos: (dados.lancamentos ?? []) as never[],
+      compromissos: (dados.compromissos ?? []) as never[],
+      metasModelo: (dados.metasModelo ?? []) as never[],
+      metasSemana: (dados.metasSemana ?? []) as never[],
+      revisoes: (dados.revisoes ?? []) as never[],
+      importacoes: (dados.importacoes ?? []) as never[],
+      planosMes: ((dados as BackupNovo).planosMes ?? []) as never[],
     })
     return
   }
@@ -117,20 +95,25 @@ export async function restaurarBackup(arquivo: File) {
     regrasImportacao: dados.regrasImportacao as never[],
     recorrentes: dados.recorrentes as never[],
   }
-  await db.transaction('rw', [db.config, db.categorias, db.estabelecimentos, db.compromissos, db.backupLegado], async () => {
-    await db.backupLegado.put({
-      id: 'pre-sobra-2',
-      criadoEm: new Date().toISOString(),
-      json: JSON.stringify(dados),
-    })
-    await db.config.put(configAPartirDoLegado(dump.config))
-    if ((await db.categorias.count()) === 0) await db.categorias.bulkPut(CATEGORIAS_SEED)
-    await db.estabelecimentos.bulkPut(estabelecimentosDoLegado(dump))
-    await db.compromissos.bulkPut(compromissosDoLegado(dump))
+  const config = configAPartirDoLegado(dump.config)
+  const estabelecimentos = estabelecimentosDoLegado(dump)
+  const compromissos = compromissosDoLegado(dump)
+  await substituirTudo({
+    config,
+    categorias: CATEGORIAS_SEED,
+    estabelecimentos,
+    lancamentos: [],
+    compromissos,
+    metasModelo: [],
+    metasSemana: [],
+    revisoes: [],
+    importacoes: [],
+    planosMes: [],
   })
 }
 
 export async function apagarTudo() {
-  await db.delete()
+  await apagarTodosOsDadosRemotos()
+  await supabase.auth.signOut()
   location.reload()
 }

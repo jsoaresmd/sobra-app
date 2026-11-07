@@ -1,4 +1,4 @@
-import { db } from './db'
+import { getConfig, getPlanoMes, upsertPlanoMes } from './repo'
 import type { Config, Lancamento, PlanoMes } from './types'
 
 const IGNORAR = 'cat-ignorar'
@@ -20,23 +20,23 @@ export function planoDoMes(planos: readonly PlanoMes[], mes: string, config?: Pi
 
 /** Cria o plano no banco se ainda não existir. */
 export async function garantirPlanoMes(mes: string) {
-  const existente = await db.planosMes.get(mes)
+  const existente = await getPlanoMes(mes)
   if (existente) return existente
-  const config = await db.config.get('app')
+  const config = await getConfig()
   const plano = planoPadrao(mes, config)
-  await db.planosMes.put(plano)
+  await upsertPlanoMes(plano)
   return plano
 }
 
 export async function salvarPlanoMes(mudancas: Partial<PlanoMes> & { mes: string }) {
-  const atual = (await db.planosMes.get(mudancas.mes)) ?? planoPadrao(mudancas.mes, await db.config.get('app'))
+  const atual = (await getPlanoMes(mudancas.mes)) ?? planoPadrao(mudancas.mes, await getConfig())
   const plano: PlanoMes = {
     ...atual,
     ...mudancas,
     id: mudancas.mes,
     mes: mudancas.mes,
   }
-  await db.planosMes.put(plano)
+  await upsertPlanoMes(plano)
   return plano
 }
 

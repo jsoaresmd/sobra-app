@@ -168,6 +168,5 @@ async function migrarParaRevisaoSemanal(tx: Transaction) {
 
 export const db = new SobraDB()
 
-export function novoId() {
-  return crypto.randomUUID()
-}
+/** @deprecated use ids.novoId — mantido para o import único do IndexedDB. */
+export { novoId } from './ids'

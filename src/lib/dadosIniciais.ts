@@ -1,6 +1,7 @@
-import { db } from './db'
 import { CATEGORIAS_SEED } from './categoriasSeed'
 import { METAS_SEED } from './metas'
+import { semAvisar } from './mudanca'
+import { carregarTudo, upsertCategorias, upsertConfig, upsertMetasModelo } from './repo'
 import type { Config } from './types'
 
 const configVazia = (): Config => ({
@@ -13,17 +14,22 @@ const configVazia = (): Config => ({
 
 let inicio: Promise<void> | null = null
 
-/** Cria config e categorias na primeira abertura. A migração do banco antigo roda no Dexie. */
+/** Cria config, categorias e metas na primeira entrada após o login. */
 export function garantirDadosIniciais() {
   if (!inicio) {
-    inicio = (async () => {
-      if (!(await db.config.get('app'))) await db.config.put(configVazia())
-      if ((await db.categorias.count()) === 0) await db.categorias.bulkPut(CATEGORIAS_SEED)
-      if ((await db.metasModelo.count()) === 0) await db.metasModelo.bulkPut(METAS_SEED)
-    })().catch((erro) => {
+    inicio = semAvisar(async () => {
+      const pacote = await carregarTudo()
+      if (!pacote.config) await upsertConfig(configVazia())
+      if (pacote.categorias.length === 0) await upsertCategorias(CATEGORIAS_SEED)
+      if (pacote.metasModelo.length === 0) await upsertMetasModelo(METAS_SEED)
+    }).catch((erro) => {
       inicio = null
       throw erro
     })
   }
   return inicio
+}
+
+export function resetarSeed() {
+  inicio = null
 }

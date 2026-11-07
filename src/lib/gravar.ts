@@ -1,6 +1,23 @@
-import { db, novoId } from './db'
+import { novoId } from './ids'
 import { importarCsv, type ResumoImportacao } from './importarCsv'
 import { chaveEstabelecimento } from './merchant'
+import { avisarMudanca, semAvisar } from './mudanca'
+import {
+  buscarCompromisso,
+  buscarEstabelecimentoPorChave,
+  buscarLancamento,
+  insertImportacao,
+  listarLancamentosPorEstabelecimento,
+  updateCompromisso,
+  updateEstabelecimento,
+  updateLancamento,
+  updateLancamentosPorEstabelecimento,
+  upsertCompromissos,
+  upsertEstabelecimentos,
+  upsertLancamentos,
+  deleteLancamento,
+  carregarTudo,
+} from './repo'
 import type { Compromisso, Lancamento } from './types'
 
 export type ResumoGravado = ResumoImportacao & {
@@ -9,29 +26,32 @@ export type ResumoGravado = ResumoImportacao & {
 }
 
 export async function gravarCsv(texto: string, arquivo: string): Promise<ResumoGravado> {
-  const config = await db.config.get('app')
-  const [estabelecimentos, lancamentosAtuais, compromissosAtuais] = await Promise.all([
-    db.estabelecimentos.toArray(),
-    db.lancamentos.toArray(),
-    db.compromissos.toArray(),
-  ])
-  const resultado = importarCsv(texto, {
-    chavesExistentes: lancamentosAtuais.map((linha) => linha.chaveDedup),
-    regras: estabelecimentos.map((item) => ({
-      chaveNormalizada: item.chaveNormalizada,
-      categoriaId: item.categoriaId,
-    })),
-    nomesTitular: config?.nomesTitular,
-  })
+  return semAvisar(async () => {
+    const pacote = await carregarTudo()
+    const config = pacote.config
+    const estabelecimentos = pacote.estabelecimentos
+    const lancamentosAtuais = pacote.lancamentos
+    const compromissosAtuais = [...pacote.compromissos]
 
-  const porVinculo = new Map(
-    compromissosAtuais.filter((item) => item.chaveVinculo).map((item) => [item.chaveVinculo as string, item]),
-  )
-  const porChave = new Map(estabelecimentos.map((item) => [item.chaveNormalizada, item]))
-  const agora = new Date().toISOString()
-  const novos: Lancamento[] = []
+    const resultado = importarCsv(texto, {
+      chavesExistentes: lancamentosAtuais.map((linha) => linha.chaveDedup),
+      regras: estabelecimentos.map((item) => ({
+        chaveNormalizada: item.chaveNormalizada,
+        categoriaId: item.categoriaId,
+      })),
+      nomesTitular: config?.nomesTitular,
+    })
 
-  await db.transaction('rw', [db.lancamentos, db.estabelecimentos, db.compromissos, db.importacoes], async () => {
+    const porVinculo = new Map(
+      compromissosAtuais.filter((item) => item.chaveVinculo).map((item) => [item.chaveVinculo as string, item]),
+    )
+    const porChave = new Map(estabelecimentos.map((item) => [item.chaveNormalizada, item]))
+    const agora = new Date().toISOString()
+    const novos: Lancamento[] = []
+    const estabsNovos: typeof estabelecimentos = []
+    const compromissosNovos: Compromisso[] = []
+    const compromissosUpdate: Compromisso[] = []
+
     for (const rascunho of resultado.compromissos) {
       const existente = porVinculo.get(rascunho.chaveVinculo)
       if (existente) {
@@ -42,8 +62,8 @@ export async function gravarCsv(texto: string, arquivo: string): Promise<ResumoG
           mesFinal: rascunho.mesFinal ?? existente.mesFinal,
           categoriaId: existente.categoriaId ?? rascunho.categoriaId,
         }
-        await db.compromissos.update(existente.id, mudanca)
         Object.assign(existente, mudanca)
+        compromissosUpdate.push(existente)
       } else {
         const criado: Compromisso = {
           id: novoId(),
@@ -60,7 +80,8 @@ export async function gravarCsv(texto: string, arquivo: string): Promise<ResumoG
           forma: 'cartao',
           chaveVinculo: rascunho.chaveVinculo,
         }
-        await db.compromissos.add(criado)
+        compromissosNovos.push(criado)
+        compromissosAtuais.push(criado)
         porVinculo.set(rascunho.chaveVinculo, criado)
       }
     }
@@ -76,7 +97,7 @@ export async function gravarCsv(texto: string, arquivo: string): Promise<ResumoG
           nota: '',
           categoriaId: linha.categoriaId,
         }
-        await db.estabelecimentos.add(estab)
+        estabsNovos.push(estab)
         porChave.set(estab.chaveNormalizada, estab)
       }
       const categoriaId = estab.categoriaId ?? linha.categoriaId
@@ -106,17 +127,19 @@ export async function gravarCsv(texto: string, arquivo: string): Promise<ResumoG
         const saldoDevedor = Math.max(0, compromisso.saldoDevedor - linha.valor)
         const parcelasRestantes =
           compromisso.parcelasRestantes == null ? undefined : Math.max(0, compromisso.parcelasRestantes - 1)
-        await db.compromissos.update(compromisso.id, {
-          saldoDevedor,
-          ...(parcelasRestantes == null ? {} : { parcelasRestantes }),
-        })
         compromisso.saldoDevedor = saldoDevedor
         if (parcelasRestantes != null) compromisso.parcelasRestantes = parcelasRestantes
+        if (!compromissosUpdate.includes(compromisso) && !compromissosNovos.includes(compromisso)) {
+          compromissosUpdate.push(compromisso)
+        }
       }
     }
 
-    if (novos.length) await db.lancamentos.bulkAdd(novos)
-    await db.importacoes.add({
+    if (compromissosNovos.length) await upsertCompromissos(compromissosNovos)
+    if (compromissosUpdate.length) await upsertCompromissos(compromissosUpdate)
+    if (estabsNovos.length) await upsertEstabelecimentos(estabsNovos)
+    if (novos.length) await upsertLancamentos(novos)
+    await insertImportacao({
       id: novoId(),
       arquivo,
       tipo: resultado.tipo,
@@ -126,67 +149,63 @@ export async function gravarCsv(texto: string, arquivo: string): Promise<ResumoG
       ignorados: resultado.resumo.ignorados,
       semCategoria: resultado.resumo.semCategoria,
     })
-  })
+    avisarMudanca()
 
-  return { ...resultado.resumo, tipo: resultado.tipo, arquivo }
+    return { ...resultado.resumo, tipo: resultado.tipo, arquivo }
+  })
 }
 
 export async function classificarEstabelecimento(chave: string, categoriaId: string, apelido?: string) {
   if (!chave || !categoriaId) throw new Error('Faltou estabelecimento ou categoria.')
 
-  await db.transaction('rw', db.estabelecimentos, db.lancamentos, db.compromissos, async () => {
-    const estab = await db.estabelecimentos.where('chaveNormalizada').equals(chave).first()
-    const apelidoLimpo = apelido?.trim()
+  const apelidoLimpo = apelido?.trim()
+  const estab = await buscarEstabelecimentoPorChave(chave)
 
-    if (estab) {
-      await db.estabelecimentos.update(estab.id, {
-        categoriaId,
-        ...(apelidoLimpo ? { apelido: apelidoLimpo } : {}),
-      })
-    } else {
-      await db.estabelecimentos.put({
+  if (estab) {
+    await updateEstabelecimento(estab.id, {
+      categoriaId,
+      ...(apelidoLimpo ? { apelido: apelidoLimpo } : {}),
+    })
+  } else {
+    await upsertEstabelecimentos([
+      {
         id: novoId(),
         chaveNormalizada: chave,
         textoOriginal: chave,
         apelido: apelidoLimpo ?? '',
         nota: '',
         categoriaId,
-      })
-    }
+      },
+    ])
+  }
 
-    // Um modify só: no iPhone vários update em paralelo travam o IndexedDB.
-    await db.lancamentos.where('estabelecimentoChave').equals(chave).modify({
-      categoriaId,
-      confirmarEntrada: false,
-    })
-
-    const vinculos = await db.lancamentos
-      .where('estabelecimentoChave')
-      .equals(chave)
-      .filter((linha) => !!linha.compromissoId)
-      .toArray()
-    const ids = new Set(vinculos.map((linha) => linha.compromissoId).filter((id): id is string => !!id))
-    for (const id of ids) {
-      const compromisso = await db.compromissos.get(id)
-      if (!compromisso) continue
-      await db.compromissos.update(id, {
-        categoriaId: compromisso.categoriaId ?? categoriaId,
-        ...(apelidoLimpo && !compromisso.apelido ? { apelido: apelidoLimpo } : {}),
-      })
-    }
+  await updateLancamentosPorEstabelecimento(chave, {
+    categoriaId,
+    confirmarEntrada: false,
   })
+
+  const vinculos = await listarLancamentosPorEstabelecimento(chave)
+  const ids = new Set(vinculos.map((linha) => linha.compromissoId).filter((id): id is string => !!id))
+  for (const id of ids) {
+    const compromisso = await buscarCompromisso(id)
+    if (!compromisso) continue
+    await updateCompromisso(id, {
+      categoriaId: compromisso.categoriaId ?? categoriaId,
+      ...(apelidoLimpo && !compromisso.apelido ? { apelido: apelidoLimpo } : {}),
+    })
+  }
+  avisarMudanca()
 }
 
 export async function confirmarEntrada(id: string, categoriaId: string) {
   if (!id || !categoriaId) throw new Error('Faltou lançamento ou categoria.')
 
-  await db.transaction('rw', db.lancamentos, db.estabelecimentos, async () => {
-    const linha = await db.lancamentos.get(id)
-    if (!linha) return
-    await db.lancamentos.update(id, { categoriaId, confirmarEntrada: false, sinal: 'entrada' })
-    const estab = await db.estabelecimentos.where('chaveNormalizada').equals(linha.estabelecimentoChave).first()
-    if (estab) await db.estabelecimentos.update(estab.id, { categoriaId })
-  })
+  const linha = await buscarLancamento(id)
+  if (!linha) return
+  await updateLancamento(id, { categoriaId, confirmarEntrada: false, sinal: 'entrada' })
+  const estab = await buscarEstabelecimentoPorChave(linha.estabelecimentoChave)
+  if (estab) await updateEstabelecimento(estab.id, { categoriaId })
+  avisarMudanca()
 }
 
 export async function salvarManual(entrada: {
@@ -214,11 +233,11 @@ export async function salvarManual(entrada: {
     chaveDedup: `manual|${id}`,
     importadoEm: new Date().toISOString(),
   }
-  await db.lancamentos.put(lancamento)
+  await upsertLancamentos([lancamento])
   return id
 }
 
 export async function apagarManual(id: string) {
-  const linha = await db.lancamentos.get(id)
-  if (linha?.origem === 'manual') await db.lancamentos.delete(id)
+  const linha = await buscarLancamento(id)
+  if (linha?.origem === 'manual') await deleteLancamento(id)
 }

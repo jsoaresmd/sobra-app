@@ -5,11 +5,12 @@ import { CampoMoeda } from '../components/CampoMoeda'
 import { BarraGasto } from '../components/Placar'
 import { useDados } from '../contexts/DadosContext'
 import { faltaPagar, previsaoTermino, valeNoMes } from '../lib/compromissos'
-import { db, novoId } from '../lib/db'
 import { hojeISO } from '../lib/dates'
+import { novoId } from '../lib/ids'
 import { resumoDoMes } from '../lib/mesResumo'
 import { formatBRL } from '../lib/money'
 import { garantirPlanoMes, planoDoMes, salvarPlanoMes } from '../lib/planoMes'
+import { deleteCompromisso, insertCompromisso, updateEstabelecimento } from '../lib/repo'
 import { tom } from '../lib/tetos'
 import type { Compromisso, TipoCompromisso } from '../lib/types'
 
@@ -235,13 +236,7 @@ function CompromissoLinha({ item, mes, pago: foiPago }: { item: Compromisso; mes
 }
 
 async function apagarCompromisso(id: string) {
-  await db.transaction('rw', [db.compromissos, db.lancamentos, db.estabelecimentos], async () => {
-    await db.compromissos.delete(id)
-    const linhas = await db.lancamentos.where('compromissoId').equals(id).toArray()
-    await Promise.all(linhas.map((linha) => db.lancamentos.update(linha.id, { compromissoId: null })))
-    const lojas = await db.estabelecimentos.where('compromissoId').equals(id).toArray()
-    await Promise.all(lojas.map((loja) => db.estabelecimentos.update(loja.id, { compromissoId: null })))
-  })
+  await deleteCompromisso(id)
 }
 
 function FormCompromisso({ onSalvo }: { onSalvo: () => void }) {
@@ -288,8 +283,8 @@ function FormCompromisso({ onSalvo }: { onSalvo: () => void }) {
           mesFinal:
             atual && total ? format(addMonths(new Date(), Math.max(0, total - atual)), 'yyyy-MM') : undefined,
         }
-        void db.compromissos.add(compromisso).then(async () => {
-          if (lojaId) await db.estabelecimentos.update(lojaId, { compromissoId: id })
+        void insertCompromisso(compromisso).then(async () => {
+          if (lojaId) await updateEstabelecimento(lojaId, { compromissoId: id })
           onSalvo()
         })
       }}
