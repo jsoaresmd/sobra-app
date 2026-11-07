@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { CampoMoeda } from '../components/CampoMoeda'
 import { EscolherCategoria } from '../components/EscolherCategoria'
 import { Placar } from '../components/Placar'
@@ -223,6 +224,7 @@ export function RevisarPage() {
               Fechar {pendentes.map((semana) => rotuloSemana(semana)).join(', ')}.
             </p>
           )}
+          <AvisoPlanoMes />
           {(semCategoria.length > 0 || entradas.length > 0) && (
             <p className="valor-estouro">Ainda há lançamento sem categoria.</p>
           )}
@@ -540,6 +542,18 @@ function Cortes({ semana }: { semana: string }) {
   )
 }
 
+function AvisoPlanoMes() {
+  const { planosMes } = useDados()
+  const mes = hojeISO().slice(0, 7)
+  const tem = planosMes.some((item) => item.mes === mes || item.id === mes)
+  if (tem) return null
+  return (
+    <Link className="aviso" to="/mes">
+      Defina o plano de {mes.slice(5, 7)}/{mes.slice(0, 4)} no Mês
+    </Link>
+  )
+}
+
 function Proxima({
   semana,
   escolhidas,
@@ -557,6 +571,7 @@ function Proxima({
   const semanais = categorias.filter((categoria) => categoria.tipo === 'semanal' && !categoria.arquivada)
   return (
     <div className="stack">
+      <AvisoPlanoMes />
       <p className="muted">{rotuloSemana(semana)}</p>
       {metasModelo.map((modelo) => {
         const ativo = escolhidas.includes(modelo.id)

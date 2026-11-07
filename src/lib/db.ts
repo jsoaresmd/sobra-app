@@ -16,6 +16,7 @@ import type {
   Lancamento,
   MetaModelo,
   MetaSemana,
+  PlanoMes,
   Revisao,
 } from './types'
 
@@ -29,6 +30,7 @@ class SobraDB extends Dexie {
   metasSemana!: EntityTable<MetaSemana, 'id'>
   revisoes!: EntityTable<Revisao, 'id'>
   importacoes!: EntityTable<Importacao, 'id'>
+  planosMes!: EntityTable<PlanoMes, 'id'>
   backupLegado!: EntityTable<BackupLegado, 'id'>
 
   constructor() {
@@ -102,6 +104,19 @@ class SobraDB extends Dexie {
       metasSemana: 'id, semana, modeloId',
       revisoes: 'id, semanaInicio',
       importacoes: 'id, data',
+      backupLegado: 'id',
+    })
+    this.version(7).stores({
+      config: 'id',
+      categorias: 'id, ordem, tipo, arquivada',
+      estabelecimentos: 'id, &chaveNormalizada, categoriaId, compromissoId',
+      lancamentos: 'id, data, categoriaId, origem, chaveDedup, idBanco, compromissoId, estabelecimentoChave',
+      compromissos: 'id, tipo, categoriaId, divida',
+      metasModelo: 'id',
+      metasSemana: 'id, semana, modeloId',
+      revisoes: 'id, semanaInicio',
+      importacoes: 'id, data',
+      planosMes: 'id, mes',
       backupLegado: 'id',
     })
   }

@@ -1,26 +1,30 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { addMonths, format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { CampoMoeda } from '../components/CampoMoeda'
+import { BarraGasto } from '../components/Placar'
 import { useDados } from '../contexts/DadosContext'
 import { faltaPagar, previsaoTermino, valeNoMes } from '../lib/compromissos'
 import { db, novoId } from '../lib/db'
 import { hojeISO } from '../lib/dates'
 import { resumoDoMes } from '../lib/mesResumo'
 import { formatBRL } from '../lib/money'
+import { garantirPlanoMes, planoDoMes, salvarPlanoMes } from '../lib/planoMes'
+import { tom } from '../lib/tetos'
 import type { Compromisso, TipoCompromisso } from '../lib/types'
 
 export function MesPage() {
   const dados = useDados()
   const [mes, setMes] = useState(hojeISO().slice(0, 7))
   const [form, setForm] = useState(false)
+  const plano = planoDoMes(dados.planosMes, mes, dados.config)
   const resumo = resumoDoMes(
     mes,
     dados.categorias,
     dados.lancamentos,
     dados.compromissos,
     dados.config?.renda ?? 0,
-    dados.config?.metaGuardarMes ?? 0,
+    plano,
   )
   const dividas = dados.compromissos
     .filter((item) => item.divida)
@@ -28,6 +32,12 @@ export function MesPage() {
   const demais = dados.compromissos.filter((item) => !item.divida)
   const falta = dados.compromissos.reduce((total, item) => total + (faltaPagar(item) ?? 0), 0)
   const rotulo = format(new Date(`${mes}-01T12:00:00`), "MMMM 'de' yyyy", { locale: ptBR })
+  const creditoEstado = tom(resumo.creditoGasto, resumo.tetoCredito)
+  const temPlanoSalvo = dados.planosMes.some((item) => item.mes === mes || item.id === mes)
+
+  useEffect(() => {
+    void garantirPlanoMes(mes)
+  }, [mes])
 
   return (
     <div className="stack gap-lg">
@@ -45,18 +55,98 @@ export function MesPage() {
         </button>
       </div>
 
-      <section className="panel">
-        <Linha nome="Renda" valor={resumo.renda} detalhe={resumo.extras > 0 ? `fixa ${formatBRL(resumo.rendaFixa)} + extra ${formatBRL(resumo.extras)}` : 'fixa'} />
-        <Linha nome="Compromissos" valor={resumo.compromissos} />
-        <Linha nome="Gasto semanal" valor={resumo.semanal} />
-        <Linha nome="Outras do mês" valor={resumo.mensais} />
-        <Linha nome="Sobra" valor={resumo.sobra} destaque />
-        <p className={resumo.sobra >= resumo.meta ? 'valor-ok' : 'valor-estouro'}>
-          Meta {formatBRL(resumo.meta)}
-          {resumo.sobra >= resumo.meta ? ' · a sobra cobre' : ` · faltam ${formatBRL(resumo.meta - resumo.sobra)}`}
-        </p>
-        <p>Guardado {formatBRL(resumo.guardado)}</p>
+      <section className="panel stack">
+        <h2>Plano deste mês</h2>
+        {!temPlanoSalvo && <p className="muted small">Ainda sem plano salvo — usando o padrão de Ajustes.</p>}
+        <div className="chips">
+          <button
+            type="button"
+            className={plano.modo === 'sair-atraso' ? 'chip ativo' : 'chip'}
+            onClick={() => void salvarPlanoMes({ mes, modo: 'sair-atraso' })}
+          >
+            Sair do atraso
+          </button>
+          <button
+            type="button"
+            className={plano.modo === 'guardar' ? 'chip ativo' : 'chip'}
+            onClick={() => void salvarPlanoMes({ mes, modo: 'guardar' })}
+          >
+            Guardar
+          </button>
+        </div>
+        {plano.modo === 'sair-atraso' ? (
+          <>
+            <label>
+              Teto no crédito este mês
+              <CampoMoeda
+                valor={plano.tetoCredito}
+                onChange={(tetoCredito) => void salvarPlanoMes({ mes, tetoCredito })}
+              />
+            </label>
+            <label>
+              Fatura que o salário paga (opcional)
+              <CampoMoeda
+                valor={plano.faturaAPagar ?? 0}
+                onChange={(faturaAPagar) => void salvarPlanoMes({ mes, faturaAPagar })}
+              />
+            </label>
+          </>
+        ) : (
+          <label>
+            Meta de guardar
+            <CampoMoeda
+              valor={plano.metaGuardar}
+              onChange={(metaGuardar) => void salvarPlanoMes({ mes, metaGuardar })}
+            />
+          </label>
+        )}
+        <label>
+          Nota
+          <textarea
+            rows={2}
+            value={plano.notas}
+            onChange={(e) => void salvarPlanoMes({ mes, notas: e.target.value })}
+            placeholder="Combinado do mês"
+          />
+        </label>
       </section>
+
+      {resumo.modo === 'sair-atraso' ? (
+        <section className="panel stack">
+          <h2>Crédito do mês</h2>
+          <div className="row-between">
+            <span>Já no cartão</span>
+            <strong className={`valor-${creditoEstado}`}>{formatBRL(resumo.creditoGasto)}</strong>
+          </div>
+          <BarraGasto gasto={resumo.creditoGasto} teto={resumo.tetoCredito} />
+          <p className="muted small">
+            Teto {formatBRL(resumo.tetoCredito)}
+            {resumo.creditoSobra >= 0
+              ? ` · ainda pode ${formatBRL(resumo.creditoSobra)}`
+              : ` · passou ${formatBRL(-resumo.creditoSobra)}`}
+          </p>
+          {resumo.faturaAPagar > 0 && (
+            <p className="muted small">Salário deste mês cobre fatura de {formatBRL(resumo.faturaAPagar)}.</p>
+          )}
+          <Linha nome="Renda" valor={resumo.renda} />
+          <Linha nome="Compromissos" valor={resumo.compromissos} />
+          <Linha nome="Gasto semanal" valor={resumo.semanal} />
+          <Linha nome="Outras do mês" valor={resumo.mensais} />
+        </section>
+      ) : (
+        <section className="panel">
+          <Linha nome="Renda" valor={resumo.renda} detalhe={resumo.extras > 0 ? `fixa ${formatBRL(resumo.rendaFixa)} + extra ${formatBRL(resumo.extras)}` : 'fixa'} />
+          <Linha nome="Compromissos" valor={resumo.compromissos} />
+          <Linha nome="Gasto semanal" valor={resumo.semanal} />
+          <Linha nome="Outras do mês" valor={resumo.mensais} />
+          <Linha nome="Sobra" valor={resumo.sobra} destaque />
+          <p className={resumo.sobra >= resumo.meta ? 'valor-ok' : 'valor-estouro'}>
+            Meta {formatBRL(resumo.meta)}
+            {resumo.sobra >= resumo.meta ? ' · a sobra cobre' : ` · faltam ${formatBRL(resumo.meta - resumo.sobra)}`}
+          </p>
+          <p>Guardado {formatBRL(resumo.guardado)}</p>
+        </section>
+      )}
 
       <section className="stack">
         <div className="row-between">

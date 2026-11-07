@@ -10,6 +10,7 @@ import type {
   Lancamento,
   MetaModelo,
   MetaSemana,
+  PlanoMes,
   Revisao,
 } from '../lib/types'
 
@@ -23,6 +24,7 @@ type DadosContextValue = {
   metasModelo: MetaModelo[]
   metasSemana: MetaSemana[]
   revisoes: Revisao[]
+  planosMes: PlanoMes[]
   temBackupLegado: boolean
 }
 
@@ -43,6 +45,7 @@ export function DadosProvider({ children }: { children: ReactNode }) {
   const metasModelo = useLiveQuery(() => db.metasModelo.toArray(), [], [])
   const metasSemana = useLiveQuery(() => db.metasSemana.toArray(), [], [])
   const revisoes = useLiveQuery(() => db.revisoes.orderBy('semanaInicio').reverse().toArray(), [], [])
+  const planosMes = useLiveQuery(() => db.planosMes.toArray(), [], [])
   const legado = useLiveQuery(() => db.backupLegado.get('pre-sobra-2'), [])
 
   const valor: DadosContextValue = {
@@ -55,6 +58,7 @@ export function DadosProvider({ children }: { children: ReactNode }) {
     metasModelo: metasModelo ?? [],
     metasSemana: metasSemana ?? [],
     revisoes: revisoes ?? [],
+    planosMes: planosMes ?? [],
     temBackupLegado: Boolean(legado),
   }
 

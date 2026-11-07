@@ -16,6 +16,7 @@ type BackupNovo = {
   metasSemana: unknown[]
   revisoes: unknown[]
   importacoes: unknown[]
+  planosMes: unknown[]
 }
 
 function baixarJson(nome: string, dados: unknown) {
@@ -29,18 +30,29 @@ function baixarJson(nome: string, dados: unknown) {
 }
 
 export async function montarBackup(): Promise<BackupNovo> {
-  const [config, categorias, estabelecimentos, lancamentos, compromissos, metasModelo, metasSemana, revisoes, importacoes] =
-    await Promise.all([
-      db.config.get('app'),
-      db.categorias.toArray(),
-      db.estabelecimentos.toArray(),
-      db.lancamentos.toArray(),
-      db.compromissos.toArray(),
-      db.metasModelo.toArray(),
-      db.metasSemana.toArray(),
-      db.revisoes.toArray(),
-      db.importacoes.toArray(),
-    ])
+  const [
+    config,
+    categorias,
+    estabelecimentos,
+    lancamentos,
+    compromissos,
+    metasModelo,
+    metasSemana,
+    revisoes,
+    importacoes,
+    planosMes,
+  ] = await Promise.all([
+    db.config.get('app'),
+    db.categorias.toArray(),
+    db.estabelecimentos.toArray(),
+    db.lancamentos.toArray(),
+    db.compromissos.toArray(),
+    db.metasModelo.toArray(),
+    db.metasSemana.toArray(),
+    db.revisoes.toArray(),
+    db.importacoes.toArray(),
+    db.planosMes.toArray(),
+  ])
 
   return {
     app: 'sobra',
@@ -55,6 +67,7 @@ export async function montarBackup(): Promise<BackupNovo> {
     metasSemana,
     revisoes,
     importacoes,
+    planosMes,
   }
 }
 
@@ -92,6 +105,7 @@ export async function restaurarBackup(arquivo: File) {
       await db.metasSemana.bulkPut((dados.metasSemana ?? []) as never[])
       await db.revisoes.bulkPut((dados.revisoes ?? []) as never[])
       await db.importacoes.bulkPut((dados.importacoes ?? []) as never[])
+      await db.planosMes.bulkPut(((dados as BackupNovo).planosMes ?? []) as never[])
     })
     return
   }

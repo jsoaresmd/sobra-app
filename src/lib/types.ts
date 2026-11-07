@@ -9,10 +9,25 @@ export type SinalLancamento = 'saida' | 'entrada'
 export type Config = {
   id: 'app'
   renda: number
+  /** Padrão ao criar o plano do mês no modo guardar. */
   metaGuardarMes: number
   /** Nomes do titular, para ignorar transferência entre contas próprias. */
   nomesTitular: string[]
   versao: 2
+}
+
+export type ModoPlanoMes = 'guardar' | 'sair-atraso'
+
+/** Objetivo do mês. id = mes (YYYY-MM). */
+export type PlanoMes = {
+  id: string
+  mes: string
+  modo: ModoPlanoMes
+  metaGuardar: number
+  tetoCredito: number
+  /** Fatura que o salário deste mês vai pagar — só contexto. */
+  faturaAPagar?: number
+  notas: string
 }
 
 export type Categoria = {

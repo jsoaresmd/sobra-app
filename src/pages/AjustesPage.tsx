@@ -50,9 +50,10 @@ function Inicio({ onAbrir }: { onAbrir: (secao: Secao) => void }) {
           <CampoMoeda valor={config.renda} onChange={(renda) => salvar({ renda })} />
         </label>
         <label>
-          Meta de guardar
+          Meta de guardar (padrão)
           <CampoMoeda valor={config.metaGuardarMes} onChange={(metaGuardarMes) => salvar({ metaGuardarMes })} />
         </label>
+        <p className="muted small">Usada ao criar o plano de um mês novo no modo Guardar. O plano do mês se edita em Mês.</p>
         <label>
           Nomes do titular
           <textarea

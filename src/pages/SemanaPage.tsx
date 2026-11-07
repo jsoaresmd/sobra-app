@@ -7,6 +7,7 @@ import { apagarManual, classificarEstabelecimento, salvarManual } from '../lib/g
 import { nomeVisivel } from '../lib/exibir'
 import { formatBRL } from '../lib/money'
 import { hojeISO } from '../lib/dates'
+import { gastoCreditoNoMes, planoDoMes } from '../lib/planoMes'
 import { fimDaSemana, inicioDaSemana, rotuloSemana } from '../lib/semana'
 import { placarDaSemana } from '../lib/tetos'
 import type { Categoria, Lancamento } from '../lib/types'
@@ -16,12 +17,16 @@ export function SemanaPage() {
   const [params, setParams] = useSearchParams()
   const categoriaId = params.get('cat')
   const semana = inicioDaSemana(hojeISO())
+  const mes = hojeISO().slice(0, 7)
   const linhas = useMemo(
     () => placarDaSemana(dados.categorias, dados.lancamentos, semana),
     [dados.categorias, dados.lancamentos, semana],
   )
   const abertos = dados.lancamentos.filter((linha) => linha.categoriaId == null || linha.confirmarEntrada).length
   const semTeto = dados.categorias.some((categoria) => categoria.tipo === 'semanal' && !categoria.arquivada && categoria.tetoMensal <= 0)
+  const plano = planoDoMes(dados.planosMes, mes, dados.config)
+  const temPlano = dados.planosMes.some((item) => item.mes === mes || item.id === mes)
+  const creditoGasto = gastoCreditoNoMes(dados.lancamentos, mes)
 
   if (categoriaId) {
     return (
@@ -42,6 +47,21 @@ export function SemanaPage() {
       {abertos > 0 && (
         <Link className="aviso" to="/revisar">
           {abertos} {abertos === 1 ? 'lançamento sem categoria' : 'lançamentos sem categoria'}
+        </Link>
+      )}
+      {!temPlano && (
+        <Link className="aviso" to="/mes">
+          Defina o plano de {mes.slice(5, 7)}/{mes.slice(0, 4)} no Mês
+        </Link>
+      )}
+      {plano.modo === 'sair-atraso' && (
+        <Link className="panel" to="/mes">
+          <div className="row-between">
+            <strong>Crédito no mês</strong>
+            <span>
+              {formatBRL(creditoGasto)} de {formatBRL(plano.tetoCredito)}
+            </span>
+          </div>
         </Link>
       )}
       {semTeto && <p className="muted small">Tem categoria sem teto. Dá para definir na revisão ou em Ajustes.</p>}
