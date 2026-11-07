@@ -8,7 +8,7 @@ function cat(
   tipo: TipoCategoria,
   ordem: number,
 ): Categoria {
-  return { id, nome, emoji, cor, tipo, tetoMensal: 0, arquivada: false, ordem }
+  return { id, nome, emoji, cor, tipo, tetoMensal: 0, arquivada: false, ordem, paiId: null }
 }
 
 export const CATEGORIAS_SEED: Categoria[] = [

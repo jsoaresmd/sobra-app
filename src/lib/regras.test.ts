@@ -66,6 +66,24 @@ describe('tetos', () => {
     const placar = placarDaSemana([mercado], linhas, '2026-10-11')
     assert.equal(placar[0]?.gasto, 0)
   })
+
+  it('soma subcategoria no teto do pai', () => {
+    const feira: Categoria = {
+      ...mercado,
+      id: 'cat-feira',
+      nome: 'Feira',
+      paiId: 'cat-mercado',
+      tetoMensal: 0,
+    }
+    const linhas = [
+      gasto({ data: '2026-10-12', valor: 80, categoriaId: 'cat-mercado' }),
+      gasto({ data: '2026-10-13', valor: 40, categoriaId: 'cat-feira', id: 'feira' }),
+    ]
+    const placar = placarDaSemana([mercado, feira], linhas, '2026-10-11')
+    assert.equal(placar.length, 1)
+    assert.equal(placar[0]?.categoriaId, 'cat-mercado')
+    assert.equal(placar[0]?.gasto, 120)
+  })
 })
 
 describe('mês, metas e compromissos', () => {

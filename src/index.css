@@ -2037,6 +2037,42 @@ button.placar-item {
   text-align: left;
 }
 
+.subcategorias {
+  margin-left: 0.75rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--line-soft);
+}
+
+.subcategoria-item {
+  background: color-mix(in srgb, var(--card-solid) 88%, var(--glow-a));
+}
+
+.placar-filhas {
+  margin: 0 0 0 2.5rem;
+}
+
+.placar-filha {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card-solid) 90%, var(--glow-b));
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.placar-filha:disabled {
+  opacity: 1;
+}
+
+.gap-sm {
+  gap: 0.4rem;
+}
+
 .chips {
   display: flex;
   gap: 8px;

@@ -448,6 +448,7 @@ function deCategoria(row: Row): Categoria {
     tetoMensal: Number(row.teto_mensal ?? 0),
     arquivada: Boolean(row.arquivada),
     ordem: Number(row.ordem ?? 0),
+    paiId: (row.pai_id as string | null) ?? null,
   }
 }
 
@@ -462,6 +463,7 @@ function paraCategoria(item: Categoria, user_id: string) {
     teto_mensal: item.tetoMensal,
     arquivada: item.arquivada,
     ordem: item.ordem,
+    pai_id: item.paiId ?? null,
   }
 }
 
@@ -474,6 +476,7 @@ function paraCategoriaParcial(mudancas: Partial<Categoria>) {
   if (mudancas.tetoMensal !== undefined) out.teto_mensal = mudancas.tetoMensal
   if (mudancas.arquivada !== undefined) out.arquivada = mudancas.arquivada
   if (mudancas.ordem !== undefined) out.ordem = mudancas.ordem
+  if (mudancas.paiId !== undefined) out.pai_id = mudancas.paiId
   return out
 }
 

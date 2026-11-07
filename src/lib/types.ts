@@ -36,10 +36,12 @@ export type Categoria = {
   emoji: string
   cor: string
   tipo: TipoCategoria
-  /** Teto do mês. O semanal é tetoMensal × 12 ÷ 52. */
+  /** Teto do mês. O semanal é tetoMensal × 12 ÷ 52. Só vale no pai. */
   tetoMensal: number
   arquivada: boolean
   ordem: number
+  /** Se preenchido, é subcategoria deste pai (um nível). */
+  paiId?: string | null
 }
 
 export type Estabelecimento = {

@@ -3,6 +3,7 @@ import { CampoMoeda } from '../components/CampoMoeda'
 import { useAuth } from '../contexts/AuthContext'
 import { useDados } from '../contexts/DadosContext'
 import { apagarTudo, baixarBackup, baixarBackupLegado, restaurarBackup } from '../lib/backup'
+import { filhasDe, raizes } from '../lib/categorias'
 import { novoId } from '../lib/ids'
 import { trazerDadosDesteCelular } from '../lib/importarCelular'
 import {
@@ -175,6 +176,11 @@ function Categorias({ onVoltar }: { onVoltar: () => void }) {
   const [nome, setNome] = useState('')
   const [emoji, setEmoji] = useState('📌')
   const [tipo, setTipo] = useState<TipoCategoria>('semanal')
+  const [subDe, setSubDe] = useState<string | null>(null)
+  const [subNome, setSubNome] = useState('')
+  const [subEmoji, setSubEmoji] = useState('📌')
+  const pais = raizes(categorias)
+
   return (
     <div className="stack gap-lg">
       <button type="button" className="back" onClick={onVoltar}>
@@ -184,8 +190,55 @@ function Categorias({ onVoltar }: { onVoltar: () => void }) {
         <h1>Categorias</h1>
       </header>
       <ul className="lista-simples">
-        {categorias.map((categoria) => (
-          <CategoriaItem key={categoria.id} categoria={categoria} />
+        {pais.map((pai) => (
+          <li key={pai.id} className="stack">
+            <CategoriaItem categoria={pai} />
+            <ul className="lista-simples subcategorias">
+              {filhasDe(categorias, pai.id).map((filha) => (
+                <CategoriaItem key={filha.id} categoria={filha} subcategoria />
+              ))}
+            </ul>
+            {subDe === pai.id ? (
+              <form
+                className="panel stack"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  if (!subNome.trim()) return
+                  const ordem = Math.max(0, ...categorias.map((categoria) => categoria.ordem)) + 1
+                  void insertCategoria({
+                    id: novoId(),
+                    nome: subNome.trim(),
+                    emoji: subEmoji || '📌',
+                    cor: pai.cor,
+                    tipo: pai.tipo,
+                    tetoMensal: 0,
+                    arquivada: false,
+                    ordem,
+                    paiId: pai.id,
+                  })
+                  setSubNome('')
+                  setSubEmoji('📌')
+                  setSubDe(null)
+                }}
+              >
+                <h3 className="secao-titulo">Subcategoria de {pai.nome}</h3>
+                <input placeholder="Nome" value={subNome} onChange={(e) => setSubNome(e.target.value)} />
+                <input placeholder="Emoji" value={subEmoji} onChange={(e) => setSubEmoji(e.target.value)} maxLength={4} />
+                <div className="row-between">
+                  <button type="button" className="secondary-btn" onClick={() => setSubDe(null)}>
+                    Cancelar
+                  </button>
+                  <button type="submit" className="primary-btn" disabled={!subNome.trim()}>
+                    Criar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button type="button" className="link-btn" onClick={() => setSubDe(pai.id)}>
+                + Subcategoria
+              </button>
+            )}
+          </li>
         ))}
       </ul>
       <form
@@ -203,11 +256,12 @@ function Categorias({ onVoltar }: { onVoltar: () => void }) {
             tetoMensal: 0,
             arquivada: false,
             ordem,
+            paiId: null,
           })
           setNome('')
         }}
       >
-        <h2>Nova</h2>
+        <h2>Nova categoria</h2>
         <input placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
         <input placeholder="Emoji" value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={4} />
         <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoCategoria)}>
@@ -223,17 +277,18 @@ function Categorias({ onVoltar }: { onVoltar: () => void }) {
   )
 }
 
-function CategoriaItem({ categoria }: { categoria: Categoria }) {
+function CategoriaItem({ categoria, subcategoria = false }: { categoria: Categoria; subcategoria?: boolean }) {
   const protegida = categoria.id === 'cat-ignorar' || categoria.id === 'cat-renda'
   const [nome, setNome] = useState(categoria.nome)
   const [emoji, setEmoji] = useState(categoria.emoji)
   useEffect(() => setNome(categoria.nome), [categoria.nome])
   useEffect(() => setEmoji(categoria.emoji), [categoria.emoji])
   return (
-    <li className="panel">
+    <div className={`panel${subcategoria ? ' subcategoria-item' : ''}`}>
       <div className="row-between">
         <strong>
           {categoria.emoji} {categoria.nome}
+          {subcategoria && <span className="muted small"> · sub</span>}
         </strong>
         {categoria.arquivada && <span className="muted small">arquivada</span>}
       </div>
@@ -252,7 +307,7 @@ function CategoriaItem({ categoria }: { categoria: Categoria }) {
           if (emoji !== categoria.emoji) void updateCategoria(categoria.id, { emoji })
         }}
       />
-      {categoria.tipo === 'semanal' && (
+      {categoria.tipo === 'semanal' && !subcategoria && (
         <label>
           Teto do mês
           <CampoMoeda
@@ -271,7 +326,7 @@ function CategoriaItem({ categoria }: { categoria: Categoria }) {
           {categoria.arquivada ? 'Reativar' : 'Arquivar'}
         </button>
       )}
-    </li>
+    </div>
   )
 }
 

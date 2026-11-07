@@ -1,3 +1,4 @@
+import { filhasDe, idsDoGrupo, paisSemanais } from './categorias'
 import { fimDaSemana, inicioDaSemana, semanasEntre } from './semana'
 import type { Categoria, Lancamento } from './types'
 
@@ -10,6 +11,11 @@ export type LinhaPlacar = {
   gasto: number
   /** Positivo sobrou. Negativo passou. */
   sobra: number
+}
+
+export type DetalheFilha = {
+  categoriaId: string
+  gasto: number
 }
 
 type Gasto = Pick<Lancamento, 'data' | 'valor' | 'sinal' | 'categoriaId' | 'compromissoId'>
@@ -26,7 +32,30 @@ export function tom(gasto: number, teto: number): 'ok' | 'alerta' | 'estouro' {
   return 'ok'
 }
 
-export function gastoDaCategoria(lancamentos: readonly Gasto[], categoriaId: string, inicio: string, fim: string) {
+export function gastoDaCategoria(
+  lancamentos: readonly Gasto[],
+  categoriaId: string,
+  inicio: string,
+  fim: string,
+  categorias?: readonly Categoria[],
+) {
+  const ids = categorias ? new Set(idsDoGrupo(categoriaId, categorias)) : new Set([categoriaId])
+  let total = 0
+  for (const linha of lancamentos) {
+    if (!linha.categoriaId || !ids.has(linha.categoriaId) || linha.compromissoId) continue
+    if (linha.data < inicio || linha.data > fim) continue
+    total += linha.sinal === 'entrada' ? -linha.valor : linha.valor
+  }
+  return total
+}
+
+/** Gasto só desta categoria (sem agregar filhas). */
+export function gastoSomente(
+  lancamentos: readonly Gasto[],
+  categoriaId: string,
+  inicio: string,
+  fim: string,
+) {
   let total = 0
   for (const linha of lancamentos) {
     if (linha.categoriaId !== categoriaId || linha.compromissoId) continue
@@ -36,8 +65,21 @@ export function gastoDaCategoria(lancamentos: readonly Gasto[], categoriaId: str
   return total
 }
 
-function categoriasSemanais(categorias: readonly Categoria[]) {
-  return categorias.filter((categoria) => categoria.tipo === 'semanal' && !categoria.arquivada)
+export function detalheFilhas(
+  categorias: readonly Categoria[],
+  lancamentos: readonly Gasto[],
+  paiId: string,
+  inicio: string,
+  fim: string,
+): DetalheFilha[] {
+  const saida: DetalheFilha[] = []
+  const noPai = gastoSomente(lancamentos, paiId, inicio, fim)
+  if (noPai !== 0) saida.push({ categoriaId: paiId, gasto: noPai })
+  for (const filha of filhasDe(categorias, paiId)) {
+    const gasto = gastoSomente(lancamentos, filha.id, inicio, fim)
+    if (gasto !== 0) saida.push({ categoriaId: filha.id, gasto })
+  }
+  return saida
 }
 
 /**
@@ -50,7 +92,7 @@ export function placarPorSemana(
   daSemana: string,
   ateSemana: string,
 ) {
-  const semanais = categoriasSemanais(categorias)
+  const semanais = paisSemanais(categorias)
   const desconto = new Map<string, number>()
   const resultado = new Map<string, LinhaPlacar[]>()
 
@@ -61,7 +103,7 @@ export function placarPorSemana(
       const base = tetoBase(categoria.tetoMensal)
       const anterior = desconto.get(categoria.id) ?? 0
       const teto = base - anterior
-      const gasto = gastoDaCategoria(lancamentos, categoria.id, semana, fim)
+      const gasto = gastoDaCategoria(lancamentos, categoria.id, semana, fim, categorias)
       const sobra = teto - gasto
       desconto.set(categoria.id, sobra < 0 ? -sobra : 0)
       linhas.push({ categoriaId: categoria.id, base, desconto: anterior, teto, gasto, sobra })

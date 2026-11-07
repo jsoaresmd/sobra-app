@@ -1,5 +1,6 @@
+import { idsDoGrupo } from './categorias'
 import { inicioDaSemana, naSemana, rotuloSemana, semanaAnterior } from './semana'
-import type { Lancamento } from './types'
+import type { Categoria, Lancamento } from './types'
 
 const IGNORAR = new Set(['cat-ignorar', 'cat-renda'])
 
@@ -7,19 +8,35 @@ function contaNoTotal(linha: Lancamento) {
   return linha.sinal === 'saida' && !!linha.categoriaId && !IGNORAR.has(linha.categoriaId)
 }
 
-export function totalDaSemana(lancamentos: readonly Lancamento[], semana: string, categoriaId?: string) {
+export function totalDaSemana(
+  lancamentos: readonly Lancamento[],
+  semana: string,
+  categoriaId?: string,
+  categorias?: readonly Categoria[],
+) {
+  const ids =
+    categoriaId && categorias ? new Set(idsDoGrupo(categoriaId, categorias)) : categoriaId ? new Set([categoriaId]) : null
   return lancamentos.reduce((total, linha) => {
     if (!naSemana(linha.data, semana) || !contaNoTotal(linha)) return total
-    if (categoriaId && linha.categoriaId !== categoriaId) return total
+    if (ids && (!linha.categoriaId || !ids.has(linha.categoriaId))) return total
     return total + linha.valor
   }, 0)
 }
 
-export function serieOitoSemanas(lancamentos: readonly Lancamento[], semanaFinal: string, categoriaId?: string) {
+export function serieOitoSemanas(
+  lancamentos: readonly Lancamento[],
+  semanaFinal: string,
+  categoriaId?: string,
+  categorias?: readonly Categoria[],
+) {
   const serie: { semana: string; rotulo: string; total: number }[] = []
   let cursor = inicioDaSemana(semanaFinal)
   for (let i = 0; i < 8; i++) {
-    serie.unshift({ semana: cursor, rotulo: rotuloSemana(cursor), total: totalDaSemana(lancamentos, cursor, categoriaId) })
+    serie.unshift({
+      semana: cursor,
+      rotulo: rotuloSemana(cursor),
+      total: totalDaSemana(lancamentos, cursor, categoriaId, categorias),
+    })
     cursor = semanaAnterior(cursor)
   }
   return serie
@@ -44,8 +61,8 @@ export function maioresCrescimentos(lancamentos: readonly Lancamento[], semana: 
   const atual = somar(semana)
   const anterior = somar(semanaAnterior(semana))
   return [...atual.entries()]
-    .map(([chave, valor]) => ({ chave, valor, antes: anterior.get(chave) ?? 0, delta: valor - (anterior.get(chave) ?? 0) }))
-    .filter((item) => item.delta > 0.009)
+    .map(([chave, valor]) => ({ chave, valor, delta: valor - (anterior.get(chave) ?? 0) }))
+    .filter((item) => item.delta > 0)
     .sort((a, b) => b.delta - a.delta)
-    .slice(0, 3)
+    .slice(0, 5)
 }

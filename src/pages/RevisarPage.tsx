@@ -203,6 +203,8 @@ export function RevisarPage() {
         <Placar
           linhas={placarDaSemana(dados.categorias, dados.lancamentos, passo.semana)}
           categorias={dados.categorias}
+          lancamentos={dados.lancamentos}
+          semana={passo.semana}
         />
       )}
 
@@ -472,7 +474,7 @@ function ResultadoMetas({ semana }: { semana: string }) {
 function Comparativo({ semana }: { semana: string }) {
   const { lancamentos, estabelecimentos, categorias } = useDados()
   const [categoriaId, setCategoriaId] = useState<string>('')
-  const serie = serieOitoSemanas(lancamentos, semana, categoriaId || undefined)
+  const serie = serieOitoSemanas(lancamentos, semana, categoriaId || undefined, categorias)
   const maximo = Math.max(1, ...serie.map((item) => item.total))
   const top = maioresGastos(lancamentos, semana)
   const cresceu = maioresCrescimentos(lancamentos, semana)
@@ -483,7 +485,7 @@ function Comparativo({ semana }: { semana: string }) {
           Total
         </button>
         {categorias
-          .filter((categoria) => categoria.tipo === 'semanal' && !categoria.arquivada)
+          .filter((categoria) => categoria.tipo === 'semanal' && !categoria.arquivada && !categoria.paiId)
           .map((categoria) => (
             <button
               key={categoria.id}
@@ -574,7 +576,9 @@ function Proxima({
   onNota: (nota: string) => void
 }) {
   const { metasModelo, categorias } = useDados()
-  const semanais = categorias.filter((categoria) => categoria.tipo === 'semanal' && !categoria.arquivada)
+  const semanais = categorias.filter(
+    (categoria) => categoria.tipo === 'semanal' && !categoria.arquivada && !categoria.paiId,
+  )
   return (
     <div className="stack">
       <AvisoPlanoMes />

@@ -7,6 +7,7 @@ import { apagarManual, classificarEstabelecimento, salvarManual } from '../lib/g
 import { nomeVisivel } from '../lib/exibir'
 import { formatBRL } from '../lib/money'
 import { hojeISO } from '../lib/dates'
+import { idsDoGrupo } from '../lib/categorias'
 import { gastoCreditoNoMes, planoDoMes } from '../lib/planoMes'
 import { fimDaSemana, inicioDaSemana, rotuloSemana } from '../lib/semana'
 import { placarDaSemana } from '../lib/tetos'
@@ -23,7 +24,10 @@ export function SemanaPage() {
     [dados.categorias, dados.lancamentos, semana],
   )
   const abertos = dados.lancamentos.filter((linha) => linha.categoriaId == null || linha.confirmarEntrada).length
-  const semTeto = dados.categorias.some((categoria) => categoria.tipo === 'semanal' && !categoria.arquivada && categoria.tetoMensal <= 0)
+  const semTeto = dados.categorias.some(
+    (categoria) =>
+      categoria.tipo === 'semanal' && !categoria.arquivada && !categoria.paiId && categoria.tetoMensal <= 0,
+  )
   const plano = planoDoMes(dados.planosMes, mes, dados.config)
   const temPlano = dados.planosMes.some((item) => item.mes === mes || item.id === mes)
   const creditoGasto = gastoCreditoNoMes(dados.lancamentos, mes)
@@ -65,7 +69,13 @@ export function SemanaPage() {
         </Link>
       )}
       {semTeto && <p className="muted small">Tem categoria sem teto. Dá para definir na revisão ou em Ajustes.</p>}
-      <Placar linhas={linhas} categorias={dados.categorias} onAbrir={(id) => setParams({ cat: id })} />
+      <Placar
+        linhas={linhas}
+        categorias={dados.categorias}
+        lancamentos={dados.lancamentos}
+        semana={semana}
+        onAbrir={(id) => setParams({ cat: id })}
+      />
       <Link className="primary-btn full centro" to="/revisar">
         Revisar
       </Link>
@@ -85,8 +95,9 @@ function ListaCategoria({
   const { categorias, lancamentos, estabelecimentos } = useDados()
   const categoria = categorias.find((item) => item.id === categoriaId)
   const fim = fimDaSemana(semana)
+  const ids = new Set(idsDoGrupo(categoriaId, categorias))
   const linhas = lancamentos
-    .filter((linha) => linha.categoriaId === categoriaId && linha.data >= semana && linha.data <= fim)
+    .filter((linha) => linha.categoriaId && ids.has(linha.categoriaId) && linha.data >= semana && linha.data <= fim)
     .sort((a, b) => b.data.localeCompare(a.data) || b.valor - a.valor)
 
   return (
@@ -99,6 +110,11 @@ function ListaCategoria({
         <h1>
           {categoria?.emoji} {categoria?.nome}
         </h1>
+        {categoria?.paiId && (
+          <p className="muted small">
+            Sub de {categorias.find((item) => item.id === categoria.paiId)?.nome}
+          </p>
+        )}
       </header>
       {linhas.length === 0 && <p className="muted">Nada nesta categoria nesta semana.</p>}
       <ul className="lista-lancamentos">
@@ -129,6 +145,11 @@ function ItemLinha({
             {linha.data.slice(8, 10)}/{linha.data.slice(5, 7)}
             {manual ? ' · dinheiro' : ' · Nubank'}
             {linha.sinal === 'entrada' ? ' · entrou' : ''}
+            {(() => {
+              const cat = categorias.find((item) => item.id === linha.categoriaId)
+              if (!cat?.paiId) return ''
+              return ` · ${cat.emoji} ${cat.nome}`
+            })()}
           </div>
         </div>
         <strong>{formatBRL(linha.valor)}</strong>
